@@ -1,33 +1,99 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+// app/(tabs)/_layout.tsx
+import { Redirect, Tabs, useRouter } from "expo-router";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { Gamepad2, Heart, Home, List, LogOut } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { TouchableOpacity } from "react-native";
+import { useApp } from "../../context/AppContext";
+import { auth } from "../../firebase";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function TabsLayout() {
+  const router = useRouter();
+  const { uid } = useApp();
+  const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  if (loading) return null;
+
+  if (!isLoggedIn) {
+    return <Redirect href="/(auth)/Login" />;
+  }
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  const goHome = () => {
+    router.replace("/(tabs)/Home");
+  };
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        headerShown: true,
+        tabBarStyle: { backgroundColor: "#f3f4f6" },
+        tabBarActiveTintColor: "#4f46e5",
+
+        /* 👈 LEFT SIDE */
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={goHome}
+            style={{ marginLeft: 16 }}
+          >
+            <Home color="#4f46e5" size={24} />
+          </TouchableOpacity>
+        ),
+
+        /* 👉 RIGHT SIDE */
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={handleLogout}
+            style={{ marginRight: 20 }}
+          >
+            <LogOut color="#4f46e5" size={24} />
+          </TouchableOpacity>
+        ),
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="Home"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "TED Space",
+          tabBarIcon: ({ color }) => <Heart color={color} size={24} />,
         }}
       />
+
       <Tabs.Screen
-        name="explore"
+        name="TED_todos"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Shared Todos",
+          tabBarIcon: ({ color }) => <List color={color} size={24} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="Games"
+        options={{
+          title: "Games",
+          tabBarIcon: ({ color }) => (
+            <Gamepad2 color={color} size={24} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="chat"
+        options={{
+          href: null,
+          title: "The Walls have Ears!",
         }}
       />
     </Tabs>
