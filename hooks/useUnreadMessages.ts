@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useApp } from "../context/AppContext";
 
@@ -14,9 +14,11 @@ export function useUnreadMessages() {
       return;
     }
 
+    // ✅ Clean, index-free query: Pull the latest messages chronologically
     const q = query(
       collection(db, "pairs", pairId, "messages"),
-      where("senderId", "!=", uid) // 👈 only partner messages
+      orderBy("localCreatedAt", "desc"),
+      limit(40) // Capped at 40 to keep performance ultra-fast and light on reads
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -24,12 +26,19 @@ export function useUnreadMessages() {
 
       snap.forEach((doc) => {
         const data = doc.data();
-        if (!data.readBy?.includes(uid)) {
+        const readByArray = data.readBy || [];
+        const senderId = data.senderId;
+
+        // ✅ Efficient client-side validation
+        // Increment ONLY if it's from your partner AND you haven't read it yet
+        if (senderId !== uid && !readByArray.includes(uid)) {
           unread++;
         }
       });
 
       setCount(unread);
+    }, (error) => {
+      console.error("Error streaming unread message count:", error);
     });
 
     return unsub;

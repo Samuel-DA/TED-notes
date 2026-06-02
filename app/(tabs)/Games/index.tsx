@@ -1,83 +1,95 @@
+// app/(tabs)/Games/index.tsx
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useApp } from "../../../context/AppContext";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-type Game = {
-  id: string;
-  title: string;
-  subtitle: string;
-  emoji: string;
-  route: "/(tabs)/Games/GuessGame" | "/(tabs)/Games/KnowMeGame";
-  disabled?: boolean;
-};
+import GuessGame from "./GuessGame";
+import KnowMeGame from "./KnowMeGame";
+import Scoreboard from "./ScoreBoard";
 
-const GAMES: Game[] = [
-  {
-    id: "guess",
-    title: "Guess the Meaning",
-    subtitle: "What does it stand for?",
-    emoji: "🎯",
-    route: "/(tabs)/Games/GuessGame",
-  },
-  {
-    id: "knowme",
-    title: "Know Me",
-    subtitle: "How well do you know your partner?",
-    emoji: "🧠",
-    route: "/(tabs)/Games/KnowMeGame",
-    disabled: true,
-  },
-];
+type GameType = "guess" | "knowme";
 
 export default function Games() {
-  const router = useRouter();
+  const { pairId, myName } = useApp();
+  const [activeGame, setActiveGame] = useState<GameType>("guess");
 
   return (
     <LinearGradient colors={["#c084fc", "#f472b6"]} style={styles.container}>
-      <Text style={styles.title}>🎮 Games</Text>
-      <Text style={styles.subtitle}>
-        Play together, earn points, have fun 💜
-      </Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        
+        {/* TOP INTRO CARD */}
+        <View style={styles.header}>
+          <Text style={styles.title}>🎮 TED&apos;s Games</Text>
+          <Text style={styles.subtitle}>Play together, earn points, have fun 💜</Text>
+        </View>
 
-      {GAMES.map((game) => (
-        <TouchableOpacity
-          key={game.id}
-          disabled={game.disabled}
-          style={[styles.card, game.disabled && styles.disabled]}
-          onPress={() =>
-            !game.disabled && router.push({ pathname: game.route })
-          }
-        >
-          <Text style={styles.emoji}>{game.emoji}</Text>
+        {/* TAB CONTROLS */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity 
+            style={[styles.tabButton, activeGame === "guess" && styles.activeTab]} 
+            onPress={() => setActiveGame("guess")}
+          >
+            <Ionicons name="disc" size={18} color={activeGame === "guess" ? "#4f46e5" : "#64748b"} />
+            <Text style={[styles.tabText, activeGame === "guess" && styles.activeTabText]}>Guessing Game</Text>
+          </TouchableOpacity>
 
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>{game.title}</Text>
-            <Text style={styles.cardSubtitle}>{game.subtitle}</Text>
-          </View>
+          <TouchableOpacity 
+            style={[styles.tabButton, activeGame === "knowme" && styles.activeTab]} 
+            onPress={() => setActiveGame("knowme")}
+          >
+            <MaterialCommunityIcons name="brain" size={18} color={activeGame === "knowme" ? "#4f46e5" : "#64748b"} />
+            <Text style={[styles.tabText, activeGame === "knowme" && styles.activeTabText]}>Know Me</Text>
+          </TouchableOpacity>
+        </View>
 
-          {game.disabled && <Text style={styles.soon}>Soon</Text>}
-        </TouchableOpacity>
-      ))}
+        {/* ACTIVE MODULE CONTAINER */}
+        {activeGame === "guess" ? (
+          <GuessGame pairId={pairId} myName={myName || "Partner"} />
+        ) : (
+          <KnowMeGame pairId={pairId} myName={myName || "Partner"} />
+        )}
+
+        {/* SCOREBOARD RENDERING */}
+        <Scoreboard pairId={pairId} />
+
+      </ScrollView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24 },
-  title: { fontSize: 34, fontWeight: "800", color: "#fff", marginTop: 40 },
-  subtitle: { marginTop: 6, marginBottom: 24, fontSize: 16, color: "#fce7f3" },
-  card: {
+  container: { flex: 1 },
+  header: { paddingHorizontal: 24, paddingTop: 50, marginBottom: 12 },
+  title: { fontSize: 32, fontWeight: "900", color: "#fff" },
+  subtitle: { marginTop: 4, fontSize: 15, color: "#fce7f3", fontWeight: "500" },
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 6,
+    gap: 6,
+  },
+  tabButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
   },
-  disabled: { opacity: 0.5 },
-  emoji: { fontSize: 36, marginRight: 16 },
-  cardTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
-  cardSubtitle: { marginTop: 2, fontSize: 14, color: "#6b7280" },
-  soon: { fontSize: 12, color: "#4f46e5", fontWeight: "700" },
+  activeTab: {
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  tabText: { fontSize: 14, fontWeight: "600", color: "#64748b" },
+  activeTabText: { color: "#4f46e5", fontWeight: "800" },
 });

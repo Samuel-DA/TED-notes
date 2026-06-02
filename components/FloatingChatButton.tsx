@@ -32,14 +32,15 @@ export default function FloatingChatButton() {
   const startY = useSharedValue(0);
   const unreadCount = useUnreadMessages();
 
-  // Load saved position
+  // Load saved position on mount
   useEffect(() => {
     (async () => {
       const json = await AsyncStorage.getItem(STORAGE_KEY);
       if (json) {
         const pos: Position = JSON.parse(json);
-        x.value = pos.x;
-        y.value = pos.y;
+        // ✅ Apply position changes smoothly on initial data mount
+        x.value = withSpring(pos.x, { damping: 15 });
+        y.value = withSpring(pos.y, { damping: 15 });
       }
     })();
   }, []);
@@ -57,6 +58,7 @@ export default function FloatingChatButton() {
       const nextX = startX.value + e.translationX;
       const nextY = startY.value + e.translationY;
 
+      // ✅ Sets positions instantly (no animations) for raw 60 FPS precision dragging
       x.value = Math.min(
         Math.max(nextX, SIDE_PADDING),
         width - BUTTON_SIZE - SIDE_PADDING,
@@ -68,13 +70,24 @@ export default function FloatingChatButton() {
       );
     })
     .onEnd(() => {
-      runOnJS(savePosition)({ x: x.value, y: y.value });
+      // 👑 Optional/Highly Recommended UX Enhancement: 
+      // Snap to the closest edge (left or right side) automatically when released, like a real chat head!
+      const snapLeft = SIDE_PADDING;
+      const snapRight = width - BUTTON_SIZE - SIDE_PADDING;
+      const finalX = x.value + (BUTTON_SIZE / 2) < width / 2 ? snapLeft : snapRight;
+
+      // ✅ Animate the final landing positions smoothly on snap release
+      x.value = withSpring(finalX, { damping: 15 });
+      y.value = withSpring(y.value, { damping: 15 });
+
+      runOnJS(savePosition)({ x: finalX, y: y.value });
     });
 
+  // ✅ Cleaned-up Animated style targeting clean values
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: withSpring(x.value, { damping: 15 }) },
-      { translateY: withSpring(y.value, { damping: 15 }) },
+      { translateX: x.value },
+      { translateY: y.value },
     ],
   }));
 
@@ -103,6 +116,9 @@ const styles = StyleSheet.create({
   container: {
     position: "absolute",
     zIndex: 1000,
+    // Note: Keep top: 0, left: 0 so absolute transform mappings translate 1:1 on the device window grid
+    top: 0,
+    left: 0,
   },
   button: {
     width: BUTTON_SIZE,
@@ -121,20 +137,22 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   badge: {
-  position: "absolute",
-  top: -4,
-  right: -4,
-  minWidth: 20,
-  height: 20,
-  borderRadius: 10,
-  backgroundColor: "#ef4444",
-  justifyContent: "center",
-  alignItems: "center",
-  paddingHorizontal: 4,
-},
-badgeText: {
-  color: "#fff",
-  fontSize: 12,
-  fontWeight: "700",
-},
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#ef4444",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: "#4f46e5", // Match button theme to separate visual stacking contexts cleanly
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "800",
+  },
 });

@@ -1,27 +1,17 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { X, Send } from "lucide-react-native";
 import { Message } from "@/types/chat";
-import styles from "./styles";
 
-interface Props {
+type Props = {
   text: string;
-  setText: React.Dispatch<React.SetStateAction<string>>;
+  setText: (v: string) => void;
   sending: boolean;
-
+  replyingTo: Message | null;
+  onCancelReply: () => void;
   onSend: () => void;
-
-  // ⬇️ make optional
-  replyingTo?: Message | null;
-  onCancelReply?: () => void;
   onPickImage?: () => void;
-}
+};
 
 export function ChatInput({
   text,
@@ -30,46 +20,112 @@ export function ChatInput({
   replyingTo,
   onCancelReply,
   onSend,
-  onPickImage,
 }: Props) {
   return (
-    <View style={styles.bottomStack}>
+    <View style={styles.container}>
+      {/* 💬 MESSAGE REPLY PREVIEW BOX */}
       {replyingTo && (
-        <View style={styles.replyBar}>
-          <Text numberOfLines={1}>
-            Replying to: {replyingTo.text ?? "Image"}
-          </Text>
-          <Ionicons name="close" size={18} onPress={onCancelReply} />
+        <View style={styles.replyPreviewHeader}>
+          <View style={styles.replyBarAccent} />
+          <View style={styles.replyContentColumn}>
+            <Text style={styles.replySenderTitle}>Replying to text</Text>
+            <Text style={styles.replyTextSnippet} numberOfLines={1}>
+              {replyingTo.text}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onCancelReply} style={styles.closeButton}>
+            <X size={18} color="#64748b" />
+          </TouchableOpacity>
         </View>
       )}
 
-      <View style={styles.inputWrapper}>
-        <TouchableOpacity onPress={onPickImage}>
-          <Ionicons name="image-outline" size={22} color="#6366f1" />
-        </TouchableOpacity>
-
+      {/* INPUT BASE FIELD ROW */}
+      <View style={styles.inputActionRow}>
         <TextInput
-          style={styles.input}
-          placeholder="Message…"
-          placeholderTextColor="#9ca3af"
           value={text}
           onChangeText={setText}
+          placeholder="Type a message..."
+          placeholderTextColor="#94a3b8"
+          style={styles.textInput}
           multiline
-          textAlignVertical="center"
         />
-
         <TouchableOpacity
           onPress={onSend}
-          style={styles.sendButton}
-          disabled={sending}
+          disabled={!text.trim() || sending}
+          style={[styles.sendCircle, { opacity: text.trim() ? 1 : 0.5 }]}
         >
-          {sending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Ionicons name="send" size={18} color="#fff" />
-          )}
+          <Send size={18} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  replyPreviewHeader: {
+    flexDirection: "row",
+    backgroundColor: "#f8fafc",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    alignItems: "center",
+    borderLeftWidth: 0,
+    overflow: "hidden",
+  },
+  replyBarAccent: {
+    width: 4,
+    height: "100%",
+    backgroundColor: "#4f46e5",
+    borderRadius: 2,
+    position: "absolute",
+    left: 0,
+    top: 10,
+  },
+  replyContentColumn: {
+    flex: 1,
+    paddingLeft: 8,
+  },
+  replySenderTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4f46e5",
+    marginBottom: 2,
+  },
+  replyTextSnippet: {
+    fontSize: 14,
+    color: "#475569",
+  },
+  closeButton: {
+    padding: 4,
+  },
+  inputActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    maxHeight: 100,
+    fontSize: 16,
+    color: "#0f172a",
+  },
+  sendCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#4f46e5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

@@ -180,7 +180,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    backgroundColor: "#f9fafb",
   },
   title: {
     fontSize: 26,
@@ -220,7 +219,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     textAlign: "center",
-    color: "#16a34a",
+    color: "#fff",
   },
   resetBtn: {
     marginTop: 28,
