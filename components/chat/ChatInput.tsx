@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { X, Send } from "lucide-react-native";
 import { Message } from "@/types/chat";
 
@@ -21,6 +21,8 @@ export function ChatInput({
   onCancelReply,
   onSend,
 }: Props) {
+  const isSendDisabled = !text.trim() || sending;
+
   return (
     <View style={styles.container}>
       {/* 💬 MESSAGE REPLY PREVIEW BOX */}
@@ -33,9 +35,18 @@ export function ChatInput({
               {replyingTo.text}
             </Text>
           </View>
-          <TouchableOpacity onPress={onCancelReply} style={styles.closeButton}>
+          
+          {/* Enhanced Close Button with expanded hit target box */}
+          <Pressable 
+            onPress={onCancelReply} 
+            hitSlop={15}
+            style={({ pressed }) => [
+              styles.closeButton,
+              { opacity: pressed ? 0.4 : 1 }
+            ]}
+          >
             <X size={18} color="#64748b" />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 
@@ -49,13 +60,22 @@ export function ChatInput({
           style={styles.textInput}
           multiline
         />
-        <TouchableOpacity
+        
+        {/* Modern, high-performance UI Send Button */}
+        <Pressable
           onPress={onSend}
-          disabled={!text.trim() || sending}
-          style={[styles.sendCircle, { opacity: text.trim() ? 1 : 0.5 }]}
+          disabled={isSendDisabled}
+          style={({ pressed }) => [
+            styles.sendCircle,
+            { 
+              opacity: isSendDisabled 
+                ? 0.4 
+                : (pressed ? 0.6 : 1) 
+            }
+          ]}
         >
           <Send size={18} color="#fff" />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

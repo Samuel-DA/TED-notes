@@ -9,6 +9,11 @@ import FloatingChatButton from "../components/FloatingChatButton";
 import { AppProvider, useApp } from "../context/AppContext";
 import AppAlert from "../components/AppAlert";
 
+// 🚀 IMPORT AND EXECUTE IMMEDIATELY
+import { enableScreens, enableFreeze } from 'react-native-screens';
+enableScreens(true);
+enableFreeze(true);
+
 function SplashScreen() {
   return (
     <SafeAreaView style={styles.splashContainer}>

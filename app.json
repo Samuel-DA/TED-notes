@@ -20,6 +20,7 @@
     "android": {
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.samuel.adebiyi.TEDnotes",
+      "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

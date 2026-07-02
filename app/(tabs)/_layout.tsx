@@ -1,9 +1,9 @@
-// app/(tabs)/_layout.tsx
 import { Redirect, Tabs, useRouter } from "expo-router";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { Gamepad2, Heart, Home, List, LogOut } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { TouchableOpacity } from "react-native";
+import { Pressable, Platform } from "react-native";
+
 import { useApp } from "../../context/AppContext";
 import { auth } from "../../firebase";
 
@@ -22,10 +22,7 @@ export default function TabsLayout() {
   }, []);
 
   if (loading) return null;
-
-  if (!isLoggedIn) {
-    return <Redirect href="/(auth)/Login" />;
-  }
+  if (!isLoggedIn) return <Redirect href="/(auth)/Login" />;
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -42,24 +39,47 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: "#f3f4f6" },
         tabBarActiveTintColor: "#4f46e5",
 
-        /* 👈 LEFT SIDE */
-        headerLeft: () => (
-          <TouchableOpacity
-            onPress={goHome}
-            style={{ marginLeft: 16 }}
-          >
-            <Home color="#4f46e5" size={24} />
-          </TouchableOpacity>
+        /* 🚀 CLEAN TAB BAR BUTTON FEEDBACK */
+        tabBarButton: (props) => (
+          <Pressable
+            {...props}
+            style={({ pressed }) => [
+              props.style,
+              { opacity: pressed && Platform.OS === 'ios' ? 0.5 : 1 }
+            ]}
+          />
         ),
 
-        /* 👉 RIGHT SIDE */
+        /* 👈 LEFT SIDE (FIXED HIT BOX & POINTER EVENTS) */
+        headerLeft: () => (
+          <Pressable
+            onPress={goHome}
+            hitSlop={{ top: 15, bottom: 15, left: 20, right: 20 }}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.4 : 1,
+              marginLeft: 16,
+              justifyContent: 'center',
+              alignItems: 'center',
+            })}
+          >
+            <Home color="#4f46e5" size={24} />
+          </Pressable>
+        ),
+
+        /* 👉 RIGHT SIDE (FIXED HIT BOX & POINTER EVENTS) */
         headerRight: () => (
-          <TouchableOpacity
+          <Pressable
             onPress={handleLogout}
-            style={{ marginRight: 20 }}
+            hitSlop={{ top: 15, bottom: 15, left: 20, right: 20 }}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.4 : 1,
+              marginRight: 20,
+              justifyContent: 'center',
+              alignItems: 'center',
+            })}
           >
             <LogOut color="#4f46e5" size={24} />
-          </TouchableOpacity>
+          </Pressable>
         ),
       }}
     >
@@ -70,7 +90,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <Heart color={color} size={24} />,
         }}
       />
-
       <Tabs.Screen
         name="TED_todos"
         options={{
@@ -78,17 +97,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <List color={color} size={24} />,
         }}
       />
-
       <Tabs.Screen
         name="Games"
         options={{
           title: "Games",
-          tabBarIcon: ({ color }) => (
-            <Gamepad2 color={color} size={24} />
-          ),
+          tabBarIcon: ({ color }) => <Gamepad2 color={color} size={24} />,
         }}
       />
-
       <Tabs.Screen
         name="chat"
         options={{
