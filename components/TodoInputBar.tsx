@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import {
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
   Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Plus } from "lucide-react-native";
+import { palette } from "@/constants/design";
 
 type Props = {
   value: string;
@@ -35,11 +36,11 @@ export default function TodoInputBar({ value, onChange, onSend }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom || 12 }]}>
+    <View style={[styles.container, { paddingBottom: (insets.bottom || 12) + 78 }]}>
       <TextInput
         value={value}
         onChangeText={onChange}
-        placeholder="Write something daring..."
+        placeholder="Add a shared plan…"
         placeholderTextColor="#9ca3af"
         multiline
         onContentSizeChange={(e) =>
@@ -61,7 +62,7 @@ export default function TodoInputBar({ value, onChange, onSend }: Props) {
             { opacity: value.trim() ? 1 : 0.4 },
           ]}
         >
-          <Text style={styles.arrow}>↑</Text>
+          <Plus color="#fff" size={22} />
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -74,8 +75,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingHorizontal: 16,
     paddingTop: 12,
-    borderTopWidth: 0.5,
-     backgroundColor: "#0f172a",
+    backgroundColor: "rgba(255,249,245,0.98)",
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -84,11 +84,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     backgroundColor: "#fff",
-    borderRadius: 30,
+    borderRadius: 18,
     paddingHorizontal: 20,
     paddingVertical: 14,
     fontSize: 16,
-    color: "#111827",
+    color: palette.text,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -98,18 +98,13 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: "#4f46e5",
+    borderRadius: 17,
+    backgroundColor: palette.rose,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#4f46e5",
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
-  },
-  arrow: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
   },
 });

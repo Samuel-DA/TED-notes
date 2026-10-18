@@ -1,0 +1,24 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isPairMember(pairId) {
+      return request.auth != null
+        && request.auth.uid in firestore.get(
+          /databases/(default)/documents/pairs/$(pairId)
+        ).data.members;
+    }
+
+    match /pairs/{pairId}/voiceCapsules/{ownerUid}/{fileName} {
+      allow read: if isPairMember(pairId);
+      allow create: if isPairMember(pairId)
+        && request.auth.uid == ownerUid
+        && fileName.matches('^[A-Za-z0-9_-]+[.]m4a$')
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('audio/.*');
+      allow update: if false;
+      allow delete: if isPairMember(pairId)
+        && request.auth.uid == ownerUid;
+    }
+  }
+}

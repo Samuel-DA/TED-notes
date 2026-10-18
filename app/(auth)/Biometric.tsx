@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import BiometricAuth from "../../components/BiometricAuth";
 import { useRouter } from "expo-router";

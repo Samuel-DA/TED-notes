@@ -40,7 +40,7 @@ export default function PrayerCard({
         🙏 Prayer Point of the Day
       </Text>
       <Text style={{ color: "#fff", fontSize: 16, fontWeight: "500", lineHeight: 22, marginBottom: 6 }}>
-        "{prayerPoint.text}"
+        {`“${prayerPoint.text}”`}
       </Text>
       <Text style={{ color: "#ffe4e6", fontSize: 13, fontWeight: "600", textAlign: "right", marginBottom: 12 }}>
         — {prayerPoint.reference}

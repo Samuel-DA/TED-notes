@@ -10,6 +10,8 @@ import Animated, {
     withSpring,
 } from "react-native-reanimated";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
+import { MessageCircle } from "lucide-react-native";
+import { palette } from "@/constants/design";
 
 const { width, height } = Dimensions.get("window");
 
@@ -43,7 +45,7 @@ export default function FloatingChatButton() {
         y.value = withSpring(pos.y, { damping: 15 });
       }
     })();
-  }, []);
+  }, [x, y]);
 
   const savePosition = (pos: Position) => {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
@@ -98,7 +100,7 @@ export default function FloatingChatButton() {
           onPress={() => router.push("/(tabs)/chat")}
           style={styles.button}
         >
-          <Text style={styles.text}>💬</Text>
+          <MessageCircle color="#fff" fill="rgba(255,255,255,0.16)" size={27} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
@@ -124,7 +126,7 @@ const styles = StyleSheet.create({
     width: BUTTON_SIZE,
     height: BUTTON_SIZE,
     borderRadius: BUTTON_SIZE / 2,
-    backgroundColor: "#4f46e5",
+    backgroundColor: palette.whatsapp,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -132,9 +134,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
-  },
-  text: {
-    fontSize: 28,
   },
   badge: {
     position: "absolute",
@@ -148,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: "#4f46e5", // Match button theme to separate visual stacking contexts cleanly
+    borderColor: palette.whatsapp,
   },
   badgeText: {
     color: "#fff",

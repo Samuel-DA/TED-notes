@@ -1,18 +1,15 @@
-// app/(tabs)/Games/theme.ts
+// Shared visual theme for couple games.
+import { cardShadow, palette } from "@/constants/design";
 import { StyleSheet } from "react-native";
 
 export const gameStyles = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderRadius: 24,
+    backgroundColor: palette.paper,
+    borderRadius: 26,
     padding: 20,
     marginHorizontal: 16,
     marginTop: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
+    ...cardShadow,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.5)",
   },
@@ -24,12 +21,12 @@ export const gameStyles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#1e1b4b",
-    marginLeft: 8,
+    color: palette.text,
+    marginLeft: 0,
   },
   description: {
     fontSize: 14,
-    color: "#64748b",
+    color: palette.muted,
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -51,7 +48,7 @@ export const gameStyles = StyleSheet.create({
     marginBottom: 12,
   },
   btn: {
-    backgroundColor: "#6366f1",
+    backgroundColor: palette.violet,
     borderRadius: 14,
     padding: 14,
     alignItems: "center",
@@ -109,14 +106,17 @@ export const gameStyles = StyleSheet.create({
   resetBtn: {
     backgroundColor: "transparent",
     borderWidth: 1.5,
-    borderColor: "#6366f1",
+    borderColor: palette.violet,
     borderRadius: 14,
     padding: 12,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
     marginTop: 16,
   },
   resetText: {
-    color: "#6366f1",
+    color: palette.violet,
     fontWeight: "800",
     fontSize: 15,
   },

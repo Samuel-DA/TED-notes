@@ -1,5 +1,5 @@
 import * as LocalAuthentication from "expo-local-authentication";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 
@@ -9,6 +9,8 @@ type Props = {
 
 export default function BiometricAuth({ onAuthenticated }: Props) {
   const [biometricSupported, setBiometricSupported] = useState(false);
+  const isAuthenticating = useRef(false);
+  const hasAutoPrompted = useRef(false);
 
   const checkDeviceForBiometrics = async () => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -18,21 +20,27 @@ export default function BiometricAuth({ onAuthenticated }: Props) {
 
   // ✅ Wrap handleAuthenticate in useCallback to avoid hook warning
   const handleAuthenticate = useCallback(async () => {
-    if (!biometricSupported) return;
+    if (!biometricSupported || isAuthenticating.current) return;
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Unlock TED Space",
-      fallbackLabel: "Use Passcode",
-    });
+    isAuthenticating.current = true;
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Unlock TED Space",
+        fallbackLabel: "Use Passcode",
+      });
 
-    if (result.success) {
-      onAuthenticated();
+      if (result.success) {
+        onAuthenticated();
+      }
+    } finally {
+      isAuthenticating.current = false;
     }
   }, [biometricSupported, onAuthenticated]);
 
   useEffect(() => {
-    if (biometricSupported) {
-      handleAuthenticate();
+    if (biometricSupported && !hasAutoPrompted.current) {
+      hasAutoPrompted.current = true;
+      void handleAuthenticate();
     }
   }, [biometricSupported, handleAuthenticate]);
 
@@ -40,13 +48,6 @@ export default function BiometricAuth({ onAuthenticated }: Props) {
   useEffect(() => {
     checkDeviceForBiometrics();
   }, []);
-
-  // 🔹 Auto-prompt when available
-  useEffect(() => {
-    if (biometricSupported) {
-      handleAuthenticate();
-    }
-  }, [biometricSupported, handleAuthenticate]);
 
   return (
     <View style={styles.container}>
@@ -75,11 +76,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     marginBottom: 20,
-    color: "#4f46e5",
+    color: "#211A2C",
   },
   text: { fontSize: 16, color: "#6b7280", marginTop: 10 },
   button: {
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#E85D75",
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 22,

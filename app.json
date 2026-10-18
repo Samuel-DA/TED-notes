@@ -2,16 +2,16 @@
   "expo": {
     "name": "TED-Space",
     "slug": "TED-notes",
-    "version": "1.0.0+1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tednotes",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.samuel.adebiyi.TEDnotes",
+      "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "TED Space uses Face ID to securely lock your personal diary entries when backgrounded."
@@ -20,6 +20,7 @@
     "android": {
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.samuel.adebiyi.TEDnotes",
+      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
@@ -48,7 +49,23 @@
           }
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow TED Space to use Face ID to protect your private shared space."
+        }
+      ],
+      "expo-web-browser",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow TED Space to record private voice comfort capsules for your partner."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

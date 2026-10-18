@@ -1,7 +1,13 @@
 // app/(auth)/PairScreen.tsx
 import { useRouter } from "expo-router";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import { nanoid } from "nanoid/non-secure";
+import {
+  collection,
+  doc,
+  getDoc,
+  runTransaction,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -55,15 +61,18 @@ export default function PairScreen() {
       if (!userSnap.exists()) return;
 
       const { name } = userSnap.data();
-      const pairId = nanoid(8);
+      // Firestore auto IDs use a cryptographically strong, high-entropy generator.
+      const pairRef = doc(collection(db, "pairs"));
+      const pairId = pairRef.id;
+      const batch = writeBatch(db);
 
-      await setDoc(doc(db, "pairs", pairId), {
+      batch.set(pairRef, {
         members: [user.uid],
         names: { [user.uid]: name },
-        createdAt: Date.now(),
+        createdAt: serverTimestamp(),
       });
-
-      await updateDoc(doc(db, "users", user.uid), { pairId });
+      batch.update(doc(db, "users", user.uid), { pairId });
+      await batch.commit();
       router.replace("/(auth)/WaitingForPartner");
     } catch (err: any) {
       Alert.alert("Error", err.message || "Could not create pair");
@@ -84,36 +93,35 @@ export default function PairScreen() {
     const pairRef = doc(db, "pairs", code);
 
     try {
-      const pairSnap = await getDoc(pairRef);
-
-      // ✅ Invalid code
-      if (!pairSnap.exists()) {
-        Alert.alert("Invalid Code", "No pair found with this code");
-        return;
-      }
-
-      const pair = pairSnap.data();
-      if (!pair.members || pair.members.length >= 2) {
-        Alert.alert("Pair Full", "This pair already has two members");
-        return;
-      }
-
       const userSnap = await getDoc(doc(db, "users", user.uid));
       if (!userSnap.exists()) return;
 
       const { name } = userSnap.data();
+      await runTransaction(db, async (transaction) => {
+        const pairSnap = await transaction.get(pairRef);
+        if (!pairSnap.exists()) throw new Error("PAIR_NOT_FOUND");
 
-      // Add user to the pair
-      await updateDoc(pairRef, {
-        members: [...pair.members, user.uid],
-        names: { ...pair.names, [user.uid]: name },
+        const pair = pairSnap.data();
+        const members: string[] = Array.isArray(pair.members) ? pair.members : [];
+        if (members.includes(user.uid)) throw new Error("ALREADY_MEMBER");
+        if (members.length !== 1) throw new Error("PAIR_FULL");
+
+        transaction.update(pairRef, {
+          members: [...members, user.uid],
+          names: { ...(pair.names || {}), [user.uid]: name },
+        });
+        transaction.update(doc(db, "users", user.uid), { pairId: code });
       });
-
-      await updateDoc(doc(db, "users", user.uid), { pairId: code });
       router.replace("/(auth)/WaitingForPartner");
-    } catch (err) {
-      // Firestore permission/network errors
-      Alert.alert("Invalid Code", "No pair found with this code");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "";
+      if (reason === "PAIR_FULL") {
+        Alert.alert("Pair Full", "This pair already has two members");
+      } else if (reason === "ALREADY_MEMBER") {
+        Alert.alert("Already Joined", "You are already a member of this pair");
+      } else {
+        Alert.alert("Invalid Code", "No available pair was found with this code");
+      }
     } finally {
       setProcessing(false);
     }
@@ -135,7 +143,9 @@ export default function PairScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Pair with your partner 💞</Text>
+        <Text style={styles.kicker}>ONE PRIVATE SPACE</Text>
+        <Text style={styles.title}>Connect with your person</Text>
+        <Text style={styles.subtitle}>Create a private invite or enter the code they sent you.</Text>
 
         <TouchableOpacity
           style={[styles.button, processing && styles.disabled]}
@@ -178,7 +188,7 @@ export default function PairScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#16121F",
     justifyContent: "center",
     padding: 24,
   },
@@ -186,31 +196,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#16121F",
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#4f46e5",
-    marginBottom: 30,
+    color: "#fff",
+    marginBottom: 8,
     textAlign: "center",
   },
   button: {
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#E85D75",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: "center",
     marginBottom: 14,
   },
-  secondary: { backgroundColor: "#6366f1" },
+  secondary: { backgroundColor: "#7C4DFF" },
   disabled: { opacity: 0.6 },
   buttonText: { color: "#fff", fontWeight: "700" },
-  or: { textAlign: "center", marginVertical: 14, fontWeight: "600" },
+  or: { textAlign: "center", marginVertical: 14, fontWeight: "800", color: "#8F8296", fontSize: 11, letterSpacing: 1.5 },
   input: {
     backgroundColor: "#fff",
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 14,
     marginBottom: 14,
     fontSize: 16,
+    color: "#211A2C",
   },
+  kicker: { color: "#F08BA0", textAlign: "center", fontSize: 10, fontWeight: "900", letterSpacing: 1.8, marginBottom: 8 },
+  subtitle: { color: "#B4A8BA", textAlign: "center", fontSize: 14, lineHeight: 20, marginBottom: 30 },
 });

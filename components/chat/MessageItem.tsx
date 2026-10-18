@@ -98,7 +98,6 @@ export function MessageItem({
               {/* Long press listener attached natively inside text block wrappers */}
               <Text 
                 onLongPress={onLongPress} 
-                delayLongPress={280} 
                 style={[styles.messageText, isMe ? styles.textMe : styles.textPartner]}
               >
                 {message.text}

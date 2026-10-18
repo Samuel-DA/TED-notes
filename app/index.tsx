@@ -74,9 +74,9 @@ export default function Index() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#4f46e5" />
-        <Text>Loading your TED Space…</Text>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#16121F" }}>
+        <ActivityIndicator size="large" color="#E85D75" />
+        <Text style={{ color: "#D8C9DF", marginTop: 12, fontWeight: "700" }}>Opening your space…</Text>
       </View>
     );
   }

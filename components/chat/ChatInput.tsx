@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { X, Send } from "lucide-react-native";
 import { Message } from "@/types/chat";
+import { palette } from "@/constants/design";
 
 type Props = {
   text: string;
@@ -83,15 +84,13 @@ export function ChatInput({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderColor: "#e2e8f0",
+    backgroundColor: "#F0F2F5",
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   replyPreviewHeader: {
     flexDirection: "row",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#fff",
     borderRadius: 8,
     padding: 10,
     marginBottom: 8,
@@ -102,7 +101,7 @@ const styles = StyleSheet.create({
   replyBarAccent: {
     width: 4,
     height: "100%",
-    backgroundColor: "#4f46e5",
+    backgroundColor: palette.whatsapp,
     borderRadius: 2,
     position: "absolute",
     left: 0,
@@ -115,7 +114,7 @@ const styles = StyleSheet.create({
   replySenderTitle: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#4f46e5",
+    color: palette.whatsapp,
     marginBottom: 2,
   },
   replyTextSnippet: {
@@ -132,8 +131,8 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: "#f1f5f9",
-    borderRadius: 20,
+    backgroundColor: "#fff",
+    borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 8,
     maxHeight: 100,
@@ -144,7 +143,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#4f46e5",
+    backgroundColor: palette.whatsapp,
     alignItems: "center",
     justifyContent: "center",
   },

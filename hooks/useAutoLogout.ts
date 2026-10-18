@@ -1,7 +1,7 @@
 // hooks/useAutoLogout.ts
 import { useRouter } from "expo-router";
 import { signOut } from "firebase/auth";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
     AppState,
     AppStateStatus
@@ -13,14 +13,14 @@ const TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 export default function useAutoLogout() {
   const router = useRouter();
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resetTimeout = () => {
+  const resetTimeout = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
-      signOut(auth).then(() => router.replace("/login" as any));
-    }, TIMEOUT) as unknown as NodeJS.Timeout; // type fix
-  };
+      signOut(auth).then(() => router.replace("/(auth)/Login"));
+    }, TIMEOUT);
+  }, [router]);
 
   useEffect(() => {
     resetTimeout();
@@ -37,7 +37,7 @@ export default function useAutoLogout() {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       subscription.remove();
     };
-  }, []);
+  }, [resetTimeout]);
 
   // Return a handler to attach to touch events
   return { onUserInteraction: resetTimeout };

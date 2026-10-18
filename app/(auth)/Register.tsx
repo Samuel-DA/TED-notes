@@ -100,7 +100,7 @@ export default function Register() {
   }, [password, confirmPassword, checkAnim]);
 
   return (
-    <LinearGradient colors={["#c084fc", "#f472b6"]} style={styles.container}>
+    <LinearGradient colors={["#16121F", "#3B223F", "#7A385F"]} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ width: "100%" }}
@@ -111,7 +111,7 @@ export default function Register() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.card}>
-            <Text style={styles.title}>Create account ✨</Text>
+            <Text style={styles.title}>Create account</Text>
             <Text style={styles.subtitle}>
               Start your shared space together
             </Text>
@@ -232,18 +232,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,0.98)",
     borderRadius: 28,
     padding: 28,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
+    shadowOpacity: 0.2,
+    shadowRadius: 28,
     elevation: 8,
   },
   title: {
     fontSize: 30,
     fontWeight: "800",
-    color: "#4f46e5",
+    color: "#211A2C",
     textAlign: "center",
   },
   subtitle: {
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   input: {
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F7F3F8",
     height: 56,
     borderRadius: 16,
     paddingHorizontal: 18,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   button: {
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#E85D75",
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: "center",
@@ -275,13 +275,13 @@ const styles = StyleSheet.create({
   link: {
     textAlign: "center",
     marginTop: 18,
-    color: "#6366f1",
+    color: "#7A385F",
     fontWeight: "600",
   },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F7F3F8",
     borderRadius: 16,
     paddingHorizontal: 18,
     height: 56,

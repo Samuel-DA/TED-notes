@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 
@@ -8,7 +8,7 @@ export function useAppSecurity() {
   const isAuthenticating = useRef<boolean>(false);
   const lastBackgroundTime = useRef<number>(0);
 
-  const authenticateBiometrics = async (): Promise<boolean> => {
+  const authenticateBiometrics = useCallback(async (): Promise<boolean> => {
     if (isAuthenticating.current) return false;
 
     try {
@@ -42,7 +42,7 @@ export function useAppSecurity() {
       console.error("Biometric security error:", error);
       return false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Initial launch authentication
@@ -85,7 +85,7 @@ export function useAppSecurity() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [authenticateBiometrics, isLocked]);
 
   return { isLocked, authenticateBiometrics };
 }

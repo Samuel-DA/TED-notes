@@ -4,7 +4,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -14,7 +13,9 @@ import {
 } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { LayoutAnimation } from "react-native";
-import { auth, db } from "../firebase";
+import { db } from "../firebase";
+import { useApp } from "../context/AppContext";
+import { notifyPartner } from "../services/notifications";
 
 export type Todo = {
   id: string;
@@ -24,67 +25,53 @@ export type Todo = {
 };
 
 export function useTodos() {
+  const { pairId, uid, myName } = useApp();
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const lastCompletedRef = useRef<string | null>(null);
-  const pairIdRef = useRef<string | null>(null);
 
   /* 🔁 Load pairId + realtime sync */
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    let unsubscribe: (() => void) | undefined;
-
-    const loadAndListen = async () => {
-      // 1️⃣ Load user's pairId
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (!userSnap.exists()) return;
-
-      const pairId = userSnap.data().pairId;
-      if (!pairId) return;
-
-      pairIdRef.current = pairId;
-
-      // 2️⃣ Listen to todos under the pair
+    if (!pairId) return;
       const todosRef = collection(db, "pairs", pairId, "todos");
       const q = query(todosRef, orderBy("order", "asc"));
-
-      unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(q, (snapshot) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setTodos(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Todo));
-      });
-    };
-
-    loadAndListen();
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
+        setError(null);
+      }, (e) => setError(e.message));
+    return unsubscribe;
+  }, [pairId]);
 
   /* ➕ Add */
   const addTodo = async (text: string) => {
-    if (!text.trim() || !pairIdRef.current) return;
+    if (!text.trim() || !pairId || !uid) return false;
 
-    await addDoc(collection(db, "pairs", pairIdRef.current, "todos"), {
+    await addDoc(collection(db, "pairs", pairId, "todos"), {
       text: text.trim(),
       completed: false,
-      order: todos.length,
+      // A timestamp avoids duplicate positions when both partners add at once.
+      // Explicit drag reordering still normalizes existing items to 0..n.
+      order: Date.now(),
       createdAt: serverTimestamp(),
     });
+    await notifyPartner({ pairId, currentUid: uid, route: "plans", action: "plan_added", title: "New shared plan 📌", body: `${myName || "Your partner"} added “${text.trim()}”.` });
+    return true;
   };
 
   /* ❌ Delete */
   const deleteTodo = async (id: string) => {
-    if (!pairIdRef.current) return;
+    if (!pairId || !uid) return;
 
     LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-    await deleteDoc(doc(db, "pairs", pairIdRef.current, "todos", id));
+    const item = todos.find((todo) => todo.id === id);
+    await deleteDoc(doc(db, "pairs", pairId, "todos", id));
+    await notifyPartner({ pairId, currentUid: uid, route: "plans", action: "plan_deleted", title: "Shared plan removed", body: `${myName || "Your partner"} removed “${item?.text || "a plan"}”.` });
   };
 
   /* ✅ Toggle complete */
  const toggleComplete = async (id: string, completed: boolean) => {
-  if (!pairIdRef.current) return;
+  if (!pairId || !uid) return;
 
   // 🚀 Optimistic update (instant UI)
   setTodos((prev) =>
@@ -99,27 +86,29 @@ export function useTodos() {
   }
 
   // Firestore update in background
-  updateDoc(doc(db, "pairs", pairIdRef.current, "todos", id), {
+  const item = todos.find((todo) => todo.id === id);
+  updateDoc(doc(db, "pairs", pairId, "todos", id), {
     completed: !completed,
-  }).catch(console.error);
+  }).then(() => notifyPartner({ pairId, currentUid: uid, route: "plans", action: completed ? "plan_reopened" : "plan_completed", title: completed ? "Plan reopened" : "Plan completed ✅", body: `${myName || "Your partner"} ${completed ? "reopened" : "completed"} “${item?.text || "a shared plan"}”.` })).catch(console.error);
 };
 
   /* ✏️ Edit */
   const updateTodoText = async (id: string, text: string) => {
-    if (!text.trim() || !pairIdRef.current) return;
+    if (!text.trim() || !pairId || !uid) return;
 
-    await updateDoc(doc(db, "pairs", pairIdRef.current, "todos", id), { text });
+    await updateDoc(doc(db, "pairs", pairId, "todos", id), { text: text.trim() });
+    await notifyPartner({ pairId, currentUid: uid, route: "plans", action: "plan_edited", title: "Shared plan updated ✏️", body: `${myName || "Your partner"} changed a plan to “${text.trim()}”.` });
   };
 
   /* 🔀 Reorder */
   const reorderTodos = async (data: Todo[]) => {
-    if (!pairIdRef.current) return;
+    if (!pairId) return;
 
     setTodos(data);
     const batch = writeBatch(db);
 
     data.forEach((todo, index) => {
-      batch.update(doc(db, "pairs", pairIdRef.current!, "todos", todo.id), {
+      batch.update(doc(db, "pairs", pairId, "todos", todo.id), {
         order: index,
       });
     });
@@ -134,5 +123,7 @@ export function useTodos() {
     toggleComplete,
     updateTodoText,
     reorderTodos,
+    ready: Boolean(pairId),
+    error,
   };
 }

@@ -46,7 +46,7 @@ export default function LoveNote({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [editing]);
+  }, [editing, fadeAnim, slideAnim]);
 
   // 👑 HUMANIZED RELATIVE TIMESTAMP GENERATOR
   const formatNoteTime = (epoch?: number) => {

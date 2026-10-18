@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useApp } from "../../../context/AppContext";
-import { db } from "../../../firebase";
+import { useApp } from "../../context/AppContext";
+import { db } from "../../firebase";
+import { palette } from "@/constants/design";
 
 const SCOREBOARD_ID = "global";
 
@@ -109,22 +110,23 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
 
   /* ---------------- Reset ---------------- */
   const resetScores = async () => {
-    if (!scoreboardRef || !players.length) return;
+    if (!scoreboardRef || !players.length || !uid) return;
+    const currentUid = uid;
 
     Alert.alert(
-      "Reset Scoreboard",
-      "Are you sure you want to reset both scores?",
+      "Reset My Score",
+      "Are you sure you want to reset your score? Your partner's score will stay unchanged.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Reset",
           style: "destructive",
           onPress: async () => {
-            const reset: Record<string, number> = {};
-            players.forEach((p) => (reset[p.uid] = 0));
-            reset.updatedAt = Date.now();
-
-            await setDoc(scoreboardRef, reset, { merge: true });
+            await setDoc(
+              scoreboardRef,
+              { [currentUid]: 0, updatedAt: Date.now() },
+              { merge: true },
+            );
           },
         },
       ],
@@ -144,6 +146,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
   /* ---------------- UI ---------------- */
   return (
     <View style={styles.container}>
+      <Text style={styles.kicker}>COUPLE LEAGUE</Text>
       <Text style={styles.title}>🏆 Scoreboard</Text>
 
       <View style={styles.card}>
@@ -169,7 +172,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
       </Text>
 
       <TouchableOpacity style={styles.resetBtn} onPress={resetScores}>
-        <Text style={styles.resetText}>Reset Scores</Text>
+        <Text style={styles.resetText}>Reset My Score</Text>
       </TouchableOpacity>
     </View>
   );
@@ -179,18 +182,20 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingTop: 26,
+    paddingBottom: 20,
   },
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#4f46e5",
-    marginBottom: 20,
+    color: "#fff",
+    marginBottom: 14,
     textAlign: "center",
   },
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 18,
+    borderRadius: 24,
     padding: 18,
     shadowColor: "#000",
     shadowOpacity: 0.08,
@@ -207,12 +212,12 @@ const styles = StyleSheet.create({
   player: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
+    color: palette.text,
   },
   score: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#4f46e5",
+    color: palette.rose,
   },
   leader: {
     marginTop: 20,
@@ -223,7 +228,7 @@ const styles = StyleSheet.create({
   },
   resetBtn: {
     marginTop: 28,
-    backgroundColor: "#4f46e5",
+    backgroundColor: palette.rose,
     padding: 14,
     borderRadius: 14,
     alignItems: "center",
@@ -240,7 +245,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: "#6366f1",
+    color: "#D8C9DF",
     fontWeight: "600",
   },
+  kicker: { color: "#F9A8D4", fontSize: 10, fontWeight: "900", letterSpacing: 1.6, textAlign: "center", marginBottom: 4 },
 });

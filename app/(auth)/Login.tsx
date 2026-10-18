@@ -1,7 +1,5 @@
-import { registerForPushNotificationsAsync } from "@/services/notifications";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
 import { useRef, useState } from "react";
 import {
   Animated,
@@ -18,7 +16,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../../components/AppAlert";
-import { auth, db } from "../../firebase";
+import { auth } from "../../firebase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -81,22 +79,11 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(
+      await signInWithEmailAndPassword(
         auth,
         email.trim(),
         password
       );
-
-      const uid = userCredential.user.uid;
-      const token = await registerForPushNotificationsAsync();
-
-      if (token) {
-        await setDoc(
-          doc(db, "users", uid),
-          { pushToken: token },
-          { merge: true }
-        );
-      }
 
       router.replace("/");
     } catch (err: any) {
@@ -214,19 +201,19 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#030712", // 👑 True Ultra Dark Deep Obsidian
+    backgroundColor: "#16121F",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
   card: {
     width: "100%",
-    backgroundColor: "#0b0f19", // 👑 Smooth contrasting inner layout slate card
-    borderRadius: 24,
+    backgroundColor: "#211A2C",
+    borderRadius: 28,
     paddingHorizontal: 24,
     paddingVertical: 32,
     borderWidth: 1,
-    borderColor: "#1f2937", // 👑 Clean micro border defining interface shapes cleanly
+    borderColor: "rgba(255,255,255,0.08)",
   },
   title: {
     fontSize: 26,
@@ -235,7 +222,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
   },
   subtitle: {
-    color: "#6b7280",
+    color: "#B4A8BA",
     fontSize: 14,
     marginTop: 6,
     marginBottom: 28,
@@ -244,10 +231,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111827", 
-    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#1f2937",
+    borderColor: "rgba(255,255,255,0.08)",
     paddingHorizontal: 16,
     height: 54,
     marginBottom: 16,
@@ -271,24 +258,24 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   forgotText: {
-    color: "#6366f1",
+    color: "#F08BA0",
     fontSize: 13,
     fontWeight: "600",
   },
   button: {
-    backgroundColor: "#4f46e5", // 👑 Premium structural digital royal blue gradient element tint
+    backgroundColor: "#E85D75",
     height: 52,
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#4f46e5",
+    shadowColor: "#E85D75",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: "#312e81",
+    backgroundColor: "#713646",
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -309,7 +296,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   registerHighlight: {
-    color: "#6366f1",
+    color: "#F08BA0",
     fontWeight: "600",
   },
 });

@@ -1,11 +1,11 @@
 // app/(tabs)/Games/GuessGame.tsx
 import { getAuth } from "firebase/auth";
-import { doc, increment, onSnapshot, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { arrayUnion, doc, increment, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View, ActivityIndicator, StyleSheet, Alert } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { Ionicons } from "@expo/vector-icons";
-import { db } from "../../../firebase";
+import { db } from "../../firebase";
 import { gameStyles } from "./theme";
 import { notifyGamePartner } from "./notify";
 
@@ -78,16 +78,29 @@ export default function GuessGame({ pairId, myName }: { pairId: string | null; m
     const cleanGuess = playerGuess.trim();
 
     if (cleanGuess.toLowerCase() === game.answer) {
-      setConfettiKey((k) => k + 1);
+      let awarded = false;
+      await runTransaction(db, async (transaction) => {
+        const currentGame = await transaction.get(gameRef);
+        if (!currentGame.exists() || currentGame.data().status !== "guessing") return;
+        if (currentGame.data().answer !== cleanGuess.toLowerCase()) return;
 
-      await updateDoc(gameRef, {
-        status: "finished",
-        winner: uid,
-        finishedAt: Date.now(),
+        transaction.update(gameRef, {
+          status: "finished",
+          winner: uid,
+          finishedAt: Date.now(),
+        });
+        transaction.set(
+          scoreboardRef,
+          { [uid]: increment(1), updatedAt: Date.now() },
+          { merge: true },
+        );
+        awarded = true;
       });
 
-      await setDoc(scoreboardRef, { [uid]: increment(1), updatedAt: Date.now() }, { merge: true });
-      await notifyGamePartner(pairId, uid, "🎉 Challenge Solved!", `${myName} successfully deciphered your word!`);
+      if (awarded) {
+        setConfettiKey((k) => k + 1);
+        await notifyGamePartner(pairId, uid, "🎉 Challenge Solved!", `${myName} successfully deciphered your word!`);
+      }
     } else {
       setErrorMessage(`"${cleanGuess}" isn't quite right. Try again!`);
       setTimeout(() => setErrorMessage(null), 3500);
@@ -184,7 +197,7 @@ export default function GuessGame({ pairId, myName }: { pairId: string | null; m
           {isCreator ? (
             <View style={gameStyles.waitingContainer}>
               <ActivityIndicator size="small" color="#6366f1" style={{ marginBottom: 12 }} />
-              <Text style={gameStyles.waitingText}>Active word: <Text style={{ fontWeight: "700" }}>"{game.prompt}"</Text></Text>
+              <Text style={gameStyles.waitingText}>Active word: <Text style={{ fontWeight: "700" }}>{`“${game.prompt}”`}</Text></Text>
               
               {game.wrongGuesses && game.wrongGuesses.length > 0 ? (
                 <View style={styles.wrongGuessesBox}>

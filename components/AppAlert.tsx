@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
   Pressable,
   Platform,
 } from "react-native";
@@ -50,7 +49,7 @@ export default function AppAlert() {
     return () => {
       showFn = undefined;
     };
-  }, []);
+  }, [opacity, scale]);
 
   const close = () => {
     Animated.timing(opacity, {

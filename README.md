@@ -1,50 +1,108 @@
-# Welcome to your Expo app 👋
+# TED Space
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+TED Space is a private two-person React Native app for staying connected every day. It combines shared check-ins, moods, love notes, prayer and scripture, daily questions, chat, todos, and real-time games.
 
-## Get started
+## Current scope
 
-1. Install dependencies
+The current release is intentionally designed for one couple. Firestore documents use pair membership throughout, so the data model can support more couples later, but a public launch requires the server-side work listed under **Public-launch gates**.
 
-   ```bash
+## Main features
+
+- Email registration, login, password recovery, and persistent sessions
+- Secure high-entropy partner invitations with atomic pair joining
+- Daily couple check-in and connection streak
+- Shared moods, notes, prayer confirmations, scripture, and daily questions
+- Shared todos
+- Real-time chat with replies, reactions, read receipts, and push notifications
+- Guess the Meaning, Know Me, This or That, and Conversation Cards games
+- Shared game scoreboard
+- Face ID, Touch ID, fingerprint, or device-passcode protection on supported devices
+
+## Technology
+
+- Expo SDK 54 and React Native
+- Expo Router
+- TypeScript
+- Firebase Authentication and Cloud Firestore
+- Expo Notifications and EAS Update
+
+## Local setup
+
+1. Install dependencies:
+
+   ```sh
    npm install
    ```
 
-2. Start the app
+2. Confirm the project is healthy:
 
-   ```bash
+   ```sh
+   npm run check
+   ```
+
+3. Start the development server:
+
+   ```sh
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+The Firebase web configuration and Android `google-services.json` identify the Firebase project; they are not server credentials. Access control is enforced by `firestore.rules`.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Firestore deployment
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Authenticate the Firebase CLI against the intended Firebase project, verify the selected project, and deploy the versioned rules:
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```sh
+firebase use ted-notes
+firebase deploy --only firestore:rules
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Do not assume local rule changes protect production until this deployment succeeds.
 
-## Learn more
+## Data layout
 
-To learn more about developing your project with Expo, look at the following resources:
+```text
+users/{uid}
+pairs/{pairId}
+  messages/{messageId}
+  todos/{todoId}
+  games/{gameId}
+  scoreboard/global
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Pair-level daily state, moods, notes, and names are stored on the pair document. Every pair subcollection is restricted to authenticated pair members by the versioned Firestore rules.
 
-## Join the community
+## Quality checks
 
-Join our community of developers creating universal apps.
+```sh
+npm run typecheck
+npm run lint
+npm run check
+npm run test:rules
+npx expo install --check
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+The current Firebase CLI requires Java 21 or newer. If macOS still selects an older JDK after installing OpenJDK 25, run the rules suite with:
+
+```sh
+PATH="$(brew --prefix openjdk@25)/bin:$PATH" npm run test:rules
+```
+
+Native authentication, notifications, deep links, background/resume locking, and two-device synchronization must also be checked on real iOS and Android devices before a release.
+
+## Public-launch gates
+
+Before opening registration to other couples:
+
+- Move push-notification sending to a trusted Firebase Function with App Check, authentication, rate limiting, and Expo receipt handling.
+- Move answer validation and score awarding for competitive games to a trusted function so correct answers never reach the guessing client.
+- Add Firebase Emulator rule tests covering cross-pair reads, forged pair membership, forged sender IDs, receipt/reaction tampering, and scoreboard abuse.
+- Split growing pair-root daily history into bounded subcollections or introduce retention/archival.
+- Add account deletion, unpairing, token revocation, abuse handling, privacy policy, data export, and consent flows.
+- Add crash reporting and production monitoring without recording private message content.
+
+## Privacy notes
+
+- Firebase client API keys are identifiers, not administrative secrets; Firebase rules remain the security boundary.
+- Never commit service-account JSON, APNs private keys, FCM server credentials, or EAS access tokens.
+- Push delivery is currently client-triggered because this release is private. It must not be treated as an authenticated sender channel for a public release.

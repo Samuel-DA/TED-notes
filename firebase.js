@@ -13,7 +13,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyALk4-Ea6OAtw1e90WBRpW9bl_HZASrqto",
   authDomain: "ted-notes.firebaseapp.com",
   projectId: "ted-notes",
-  storageBucket: "ted-notes.appspot.com",
+  storageBucket: "ted-notes.firebasestorage.app",
   messagingSenderId: "1097417430176",
   appId: "1:1097417430176:web:b790a8b4e10fd7a058e5c5",
   measurementId: "G-HK5VRZZK3C",

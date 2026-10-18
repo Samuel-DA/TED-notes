@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { palette } from "@/constants/design";
 
 type Props = {
   item: {
@@ -44,7 +45,7 @@ function TodoItem({
         activeOpacity={0.7}
       >
         {item.completed && (
-          <Ionicons name="checkmark" size={16} color="#0f172a" />
+          <Ionicons name="checkmark" size={16} color="#fff" />
         )}
       </TouchableOpacity>
 
@@ -80,7 +81,7 @@ function TodoItem({
         <Ionicons
           name={isEditing ? "checkmark-circle" : "create-outline"}
           size={20}
-          color="#94a3b8"
+          color={palette.muted}
         />
       </TouchableOpacity>
 
@@ -105,37 +106,44 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1e293b",
+    backgroundColor: "#fff",
     padding: 16,
-    marginBottom: 12,
-    borderRadius: 18,
+    marginBottom: 11,
+    borderRadius: 20,
+    shadowColor: "#361D3E",
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#6366f1",
+    borderColor: "#D8C9DF",
     marginRight: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxDone: {
-    backgroundColor: "#6366f1",
+    backgroundColor: palette.success,
+    borderColor: palette.success,
   },
   text: {
     flex: 1,
     fontSize: 16,
-    color: "#f8fafc",
+    color: palette.text,
+    fontWeight: "600",
   },
   completedText: {
     textDecorationLine: "line-through",
-    color: "#64748b",
+    color: "#AAA0AE",
   },
   input: {
     flex: 1,
-    color: "#ffffff",
-    backgroundColor: "#0f172a",
+    color: palette.text,
+    backgroundColor: "#F7F3F8",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,

@@ -1,15 +1,15 @@
-import { Redirect, Tabs, useRouter } from "expo-router";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { Gamepad2, Heart, Home, List, LogOut } from "lucide-react-native";
+import { Redirect, Tabs } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth";
+import { Gamepad2, Heart, HeartHandshake, ListChecks } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Pressable, Platform } from "react-native";
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { palette } from "@/constants/design";
 
-import { useApp } from "../../context/AppContext";
 import { auth } from "../../firebase";
 
 export default function TabsLayout() {
-  const router = useRouter();
-  const { uid } = useApp();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
@@ -24,84 +24,58 @@ export default function TabsLayout() {
   if (loading) return null;
   if (!isLoggedIn) return <Redirect href="/(auth)/Login" />;
 
-  const handleLogout = async () => {
-    await signOut(auth);
-  };
-
-  const goHome = () => {
-    router.replace("/(tabs)/Home");
-  };
-
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
-        tabBarStyle: { backgroundColor: "#f3f4f6" },
-        tabBarActiveTintColor: "#4f46e5",
-
-        /* 🚀 CLEAN TAB BAR BUTTON FEEDBACK */
-        tabBarButton: (props) => (
-          <Pressable
-            {...props}
-            style={({ pressed }) => [
-              props.style,
-              { opacity: pressed && Platform.OS === 'ios' ? 0.5 : 1 }
-            ]}
-          />
-        ),
-
-        /* 👈 LEFT SIDE (FIXED HIT BOX & POINTER EVENTS) */
-        headerLeft: () => (
-          <Pressable
-            onPress={goHome}
-            hitSlop={{ top: 15, bottom: 15, left: 20, right: 20 }}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.4 : 1,
-              marginLeft: 16,
-              justifyContent: 'center',
-              alignItems: 'center',
-            })}
-          >
-            <Home color="#4f46e5" size={24} />
-          </Pressable>
-        ),
-
-        /* 👉 RIGHT SIDE (FIXED HIT BOX & POINTER EVENTS) */
-        headerRight: () => (
-          <Pressable
-            onPress={handleLogout}
-            hitSlop={{ top: 15, bottom: 15, left: 20, right: 20 }}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.4 : 1,
-              marginRight: 20,
-              justifyContent: 'center',
-              alignItems: 'center',
-            })}
-          >
-            <LogOut color="#4f46e5" size={24} />
-          </Pressable>
-        ),
+        headerShown: false,
+        tabBarActiveTintColor: palette.rose,
+        tabBarInactiveTintColor: "#9B91A2",
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "800", marginTop: 2 },
+        tabBarItemStyle: { paddingTop: 8 },
+        tabBarStyle: {
+          position: "absolute",
+          left: 14,
+          right: 14,
+          bottom: Math.max(insets.bottom, 8),
+          height: Platform.OS === "ios" ? 72 : 68,
+          borderRadius: 24,
+          backgroundColor: "#17121F",
+          borderTopWidth: 0,
+          paddingBottom: Platform.OS === "ios" ? 10 : 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.24,
+          shadowRadius: 20,
+          elevation: 14,
+        },
       }}
     >
       <Tabs.Screen
         name="Home"
         options={{
           title: "TED Space",
-          tabBarIcon: ({ color }) => <Heart color={color} size={24} />,
+          tabBarLabel: "Together",
+          tabBarIcon: ({ color, focused }) => <Heart color={color} fill={focused ? color : "transparent"} size={22} />,
         }}
       />
       <Tabs.Screen
         name="TED_todos"
         options={{
           title: "Shared Todos",
-          tabBarIcon: ({ color }) => <List color={color} size={24} />,
+          tabBarLabel: "Plans",
+          tabBarIcon: ({ color }) => <ListChecks color={color} size={22} />,
         }}
+      />
+      <Tabs.Screen
+        name="Care"
+        options={{ title: "Care Space", tabBarLabel: "Care", tabBarIcon: ({ color }) => <HeartHandshake color={color} size={22} /> }}
       />
       <Tabs.Screen
         name="Games"
         options={{
           title: "Games",
-          tabBarIcon: ({ color }) => <Gamepad2 color={color} size={24} />,
+          tabBarLabel: "Play",
+          tabBarIcon: ({ color }) => <Gamepad2 color={color} size={22} />,
         }}
       />
       <Tabs.Screen
@@ -109,6 +83,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "The Walls have Ears!",
+          tabBarStyle: { display: "none" },
         }}
       />
     </Tabs>

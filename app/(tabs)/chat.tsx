@@ -5,36 +5,38 @@ import { useApp } from "@/context/AppContext";
 import { db } from "@/firebase";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { useMessages } from "@/hooks/useMessages";
-import { sendPushNotification } from "@/services/notifications";
+import { notifyPartner } from "@/services/notifications";
 import { Message } from "@/types/chat";
-import { useHeaderHeight } from "@react-navigation/elements";
-import { useIsFocused } from "@react-navigation/native";
 import dayjs from "dayjs";
+import { useFocusEffect, useRouter } from "expo-router";
+import { ArrowLeft, LockKeyhole } from "lucide-react-native";
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
-  getDoc,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
+  StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { palette } from "@/constants/design";
 
 type ChatItem = Message | { type: "date"; id: string; date: string };
 
 export default function Chat() {
-  const headerHeight = useHeaderHeight();
-  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const listRef = useRef<FlatList<ChatItem>>(null);
 
   // 👑 FIXED: Sourcing partnerName and myName directly from global context
@@ -45,7 +47,6 @@ export default function Chat() {
   const safeUserId = userId ?? "";
 
   const { messages } = useMessages(safePairId, safeUserId);
-const isFocused = useIsFocused();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -54,22 +55,26 @@ const isFocused = useIsFocused();
   );
 
   // 👑 EXTRA CREDIT: Automatically marks unread incoming messages as read
-  useEffect(() => {
-    if (!isFocused || !safePairId || !safeUserId || !messages.length) return;
+  useFocusEffect(useCallback(() => {
+    if (!safePairId || !safeUserId || !messages.length) return;
 
-    messages.forEach(async (msg) => {
-      if (!msg.readBy?.includes(safeUserId)) {
+    const unreadMessages = messages.filter(
+      (msg) => msg.senderId !== safeUserId && !msg.readBy?.includes(safeUserId),
+    );
+
+    void Promise.all(
+      unreadMessages.map(async (msg) => {
         try {
           const msgRef = doc(db, "pairs", safePairId, "messages", msg.id);
           await updateDoc(msgRef, {
-            readBy: [...(msg.readBy || []), safeUserId],
+            readBy: arrayUnion(safeUserId),
           });
         } catch (err) {
           console.error("Failed auto-marking message as read:", err);
         }
-      }
-    });
-  }, [messages, safePairId, safeUserId, isFocused]);
+      }),
+    );
+  }, [messages, safePairId, safeUserId]));
 
   const formatTime = useCallback((msg: Message) => {
     const ts =
@@ -114,34 +119,14 @@ const isFocused = useIsFocused();
         }),
       });
 
-      // 2. Fetch pair details simply to extract the partner's UID
-      const pairRef = doc(db, "pairs", safePairId);
-      const pairSnap = await getDoc(pairRef);
-
-      if (pairSnap.exists()) {
-        const pairData = pairSnap.data();
-        const members: string[] = pairData.members || [];
-        const partnerUid = members.find((id) => id !== safeUserId);
-
-        if (partnerUid) {
-          // 3. Look up partner's push token
-          const partnerUserRef = doc(db, "users", partnerUid);
-          const partnerUserSnap = await getDoc(partnerUserRef);
-
-          if (partnerUserSnap.exists()) {
-            const partnerData = partnerUserSnap.data();
-            const partnerPushToken = partnerData.expoPushToken;
-
-            if (partnerPushToken) {
-              await sendPushNotification(
-                partnerPushToken,
-                `${myName || "New message"} 💬`, // Dynamic sender label
-                currentText,
-              );
-            }
-          }
-        }
-      }
+      await notifyPartner({
+        pairId: safePairId,
+        currentUid: safeUserId,
+        route: "chat",
+        action: "message_received",
+        title: `${myName || "New message"} 💬`,
+        body: currentText,
+      });
     } catch (e) {
       console.error("Error in sending sequence: ", e);
     } finally {
@@ -162,6 +147,7 @@ const isFocused = useIsFocused();
       await updateDoc(msgRef, {
         [`reactions.${safeUserId}`]: emoji,
       });
+      await notifyPartner({ pairId: safePairId, currentUid: safeUserId, route: "chat", action: "message_reaction", title: `${myName || "Your partner"} reacted ${emoji}`, body: "They reacted to a message in your chat." });
     } catch (e) {
       console.error("Failed adding reaction: ", e);
     } finally {
@@ -246,14 +232,29 @@ const isFocused = useIsFocused();
   if (!safePairId || !safeUserId) return null;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#efeae2" }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={
-        Platform.OS === "ios" ? headerHeight : headerHeight + 20
-      }
-    >
-      <View style={{ flex: 1 }}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.replace("/(tabs)/Home")} hitSlop={12} style={styles.headerButton}>
+          <ArrowLeft color="#fff" size={23} />
+        </Pressable>
+        <View style={styles.avatar}><Text style={styles.avatarText}>{(partnerName || "P").slice(0, 1).toUpperCase()}</Text></View>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerName}>{partnerName || "My person"}</Text>
+          <View style={styles.privateRow}><LockKeyhole color="#B7DED7" size={11} /><Text style={styles.headerStatus}>your private conversation</Text></View>
+        </View>
+      </View>
+      <KeyboardAvoidingView
+        style={styles.chatArea}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+        enabled
+      >
+        <View pointerEvents="none" style={styles.wallpaper}>
+          <Text style={[styles.wallpaperMark, { top: 40, left: 22 }]}>♡</Text>
+          <Text style={[styles.wallpaperMark, { top: 150, right: 35 }]}>•</Text>
+          <Text style={[styles.wallpaperMark, { top: 310, left: 75 }]}>☾</Text>
+          <Text style={[styles.wallpaperMark, { top: 500, right: 80 }]}>♡</Text>
+        </View>
         <FlatList
           ref={listRef}
           inverted
@@ -261,10 +262,11 @@ const isFocused = useIsFocused();
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           showsVerticalScrollIndicator={false}
           removeClippedSubviews={Platform.OS === "android"}
           initialNumToRender={15}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 12 }}
+          contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 14 }}
         />
 
         <ChatInput
@@ -277,14 +279,6 @@ const isFocused = useIsFocused();
           onPickImage={() => {}}
         />
 
-        <View
-          style={{
-            height: Platform.OS === "ios" ? Math.max(insets.bottom, 4) : 6,
-            backgroundColor: "#fff",
-          }}
-        />
-      </View>
-
       <Modal
         visible={reactionTargetMsgId !== null}
         transparent={true}
@@ -296,6 +290,22 @@ const isFocused = useIsFocused();
           onClose={() => setReactionTargetMsgId(null)}
         />
       </Modal>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: palette.whatsappDark },
+  header: { minHeight: 64, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", backgroundColor: palette.whatsappDark, paddingBottom: 8 },
+  headerButton: { width: 38, height: 44, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#D7EFEA", alignItems: "center", justifyContent: "center", marginRight: 11 },
+  avatarText: { color: palette.whatsappDark, fontSize: 18, fontWeight: "900" },
+  headerCopy: { flex: 1 },
+  headerName: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  privateRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  headerStatus: { color: "#C4E1DC", fontSize: 11 },
+  chatArea: { flex: 1, backgroundColor: "#EFEAE2" },
+  wallpaper: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, overflow: "hidden" },
+  wallpaperMark: { position: "absolute", color: "rgba(92,80,67,0.07)", fontSize: 38, fontWeight: "800" },
+});

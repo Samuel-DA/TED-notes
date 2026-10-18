@@ -1,13 +1,15 @@
 // app/_layout.tsx
-import { Stack, usePathname } from "expo-router";
-import React from "react";
-import { ActivityIndicator, StyleSheet, Text, View, TouchableOpacity, Platform } from "react-native"; 
+import { Href, Redirect, Stack, usePathname, useRouter } from "expo-router";
+import React, { useEffect } from "react";
+import { ActivityIndicator, AppState, StyleSheet, Text, View, TouchableOpacity, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Lock } from "lucide-react-native"; 
+import { Fingerprint, Heart, Lock } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import FloatingChatButton from "../components/FloatingChatButton";
 import { AppProvider, useApp } from "../context/AppContext";
 import AppAlert from "../components/AppAlert";
+import { getNotificationsModule, type NotificationResponse } from "../services/notifications";
 
 // 🚀 IMPORT AND EXECUTE IMMEDIATELY
 import { enableScreens, enableFreeze } from 'react-native-screens';
@@ -23,14 +25,80 @@ function SplashScreen() {
   );
 }
 
+function NotificationNavigator() {
+  const router = useRouter();
+  useEffect(() => {
+    let active = true;
+    let notificationSubscription: { remove: () => void } | null = null;
+    let appStateSubscription: { remove: () => void } | null = null;
+
+    const setup = async () => {
+      const Notifications = await getNotificationsModule();
+      if (!active || !Notifications) return;
+      const open = (response: NotificationResponse | null) => {
+        const route = response?.notification.request.content.data?.route;
+        if (route === "chat") router.push("/(tabs)/chat");
+        if (route === "plans") router.push("/(tabs)/TED_todos");
+        if (route === "care") router.push("/(tabs)/Care");
+        if (route === "care_support") router.push("/(tabs)/Care/support");
+        if (route === "care_dates") router.push("/(tabs)/Care/dates");
+        if (route === "care_period") router.push("/(tabs)/Care/period");
+        if (route === "care_routine") router.push("/(tabs)/Care/routine" as Href);
+        if (route === "care_voice") router.push("/(tabs)/Care/voice");
+        if (route === "games") router.push("/(tabs)/Games");
+        if (route === "home") router.push("/(tabs)/Home");
+        if (response) {
+          void Notifications.clearLastNotificationResponseAsync();
+          void Notifications.setBadgeCountAsync(0);
+        }
+      };
+      void Notifications.setBadgeCountAsync(0);
+      void Notifications.getLastNotificationResponseAsync().then(open);
+      notificationSubscription = Notifications.addNotificationResponseReceivedListener(open);
+      appStateSubscription = AppState.addEventListener("change", (state) => {
+        if (state === "active") void Notifications.setBadgeCountAsync(0);
+      });
+    };
+    void setup();
+    return () => {
+      active = false;
+      notificationSubscription?.remove();
+      appStateSubscription?.remove();
+    };
+  }, [router]);
+  return null;
+}
+
 function RootNavigator() {
   const { loading, uid, pairId, partnerName, isLocked, authenticateBiometrics } = useApp();
   const pathname = usePathname();
 
   if (loading) return <SplashScreen />;
 
-  const isAuthRoute = pathname.includes("(auth)") || pathname === "/Login" || pathname === "/Register" || pathname === "/Biometric";
-  const shouldShowLock = isLocked && uid && pairId && partnerName && !isAuthRoute && Platform.OS !== "ios";
+  const isAuthRoute = [
+    "/Login",
+    "/Register",
+    "/Biometric",
+    "/PairScreen",
+    "/WaitingForPartner",
+  ].includes(pathname) || pathname.includes("(auth)");
+
+  if (!uid && !isAuthRoute) {
+    return <Redirect href="/(auth)/Login" />;
+  }
+
+  if (uid && !pairId && !["/PairScreen", "/Register"].includes(pathname)) {
+    return <Redirect href="/(auth)/PairScreen" />;
+  }
+
+  if (uid && pairId && !partnerName && pathname !== "/WaitingForPartner") {
+    return <Redirect href="/(auth)/WaitingForPartner" />;
+  }
+
+  if (uid && pairId && partnerName && isAuthRoute) {
+    return <Redirect href="/(tabs)/Home" />;
+  }
+  const shouldShowLock = isLocked && uid && pairId && partnerName && !isAuthRoute && Platform.OS !== "web";
 
   let initialRoute: string;
   if (!uid) {
@@ -46,18 +114,22 @@ function RootNavigator() {
   return (
     <>
       {shouldShowLock ? (
-        <SafeAreaView style={styles.lockContainer}>
+        <LinearGradient colors={["#16121F", "#3B223F", "#71364F"]} style={styles.lockContainer}>
+          <SafeAreaView style={styles.lockSafe}>
           <View style={styles.lockBox}>
             <View style={styles.lockIconBox}>
-              <Lock size={40} color="#fff" />
+              <Heart size={34} color="#fff" fill="#fff" />
+              <View style={styles.miniLock}><Lock size={12} color="#5B2E75" /></View>
             </View>
             <Text style={styles.lockTitle}>TED Space Locked</Text>
-            <Text style={styles.lockSubtitle}>Your shared diary is secure. Unlock to continue.</Text>
+            <Text style={styles.lockSubtitle}>Your conversations and shared moments are private. Unlock to come back in.</Text>
             <TouchableOpacity onPress={authenticateBiometrics} style={styles.lockButton}>
-              <Text style={styles.lockButtonText}>Unlock with Biometrics</Text>
+              <Fingerprint color="#fff" size={20} />
+              <Text style={styles.lockButtonText}>Unlock securely</Text>
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
+          </SafeAreaView>
+        </LinearGradient>
       ) : (
         <>
           <Stack
@@ -72,7 +144,7 @@ function RootNavigator() {
             <Stack.Screen name="(auth)/WaitingForPartner" />
           </Stack>
 
-          {pairId && partnerName && pathname !== "/chat" && <FloatingChatButton />}
+          {pairId && partnerName && pathname !== "/chat" && pathname !== "/TED_todos" && <FloatingChatButton />}
         </>
       )}
     </>
@@ -83,6 +155,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppProvider>
+        <NotificationNavigator />
         <RootNavigator />
         <AppAlert />
       </AppProvider>
@@ -105,7 +178,9 @@ const styles = StyleSheet.create({
   },
   lockContainer: {
     flex: 1,
-    backgroundColor: "#6366f1",
+  },
+  lockSafe: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -117,11 +192,12 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.12)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
   },
+  miniLock: { position: "absolute", right: 3, bottom: 3, width: 26, height: 26, borderRadius: 13, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   lockTitle: { 
     color: "#fff", 
     fontSize: 24, 
@@ -130,7 +206,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   lockSubtitle: { 
-    color: "#e0e7ff", 
+    color: "#D6C9DC",
     fontSize: 14, 
     textAlign: "center", 
     marginBottom: 36, 
@@ -138,10 +214,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   lockButton: {
-    backgroundColor: "#fff",
+    backgroundColor: "#E85D75",
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -149,7 +228,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   lockButtonText: { 
-    color: "#6366f1", 
+    color: "#fff",
     fontWeight: "700", 
     fontSize: 15,
   },

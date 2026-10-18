@@ -1,11 +1,11 @@
 // app/(tabs)/Games/KnowMeGame.tsx
 import { getAuth } from "firebase/auth";
-import { doc, increment, onSnapshot, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { arrayUnion, doc, increment, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View, ActivityIndicator, StyleSheet, Alert } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { db } from "../../../firebase";
+import { db } from "../../firebase";
 import { gameStyles } from "./theme";
 import { notifyGamePartner } from "./notify";
 
@@ -70,16 +70,29 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
     const cleanGuess = guessInput.trim();
 
     if (cleanGuess.toLowerCase() === game.answer) {
-      setConfettiKey((k) => k + 1);
+      let awarded = false;
+      await runTransaction(db, async (transaction) => {
+        const currentGame = await transaction.get(gameRef);
+        if (!currentGame.exists() || currentGame.data().status !== "guessing") return;
+        if (currentGame.data().answer !== cleanGuess.toLowerCase()) return;
 
-      await updateDoc(gameRef, {
-        status: "finished",
-        winner: uid,
-        finishedAt: Date.now(),
+        transaction.update(gameRef, {
+          status: "finished",
+          winner: uid,
+          finishedAt: Date.now(),
+        });
+        transaction.set(
+          scoreboardRef,
+          { [uid]: increment(1), updatedAt: Date.now() },
+          { merge: true },
+        );
+        awarded = true;
       });
 
-      await setDoc(scoreboardRef, { [uid]: increment(1), updatedAt: Date.now() }, { merge: true });
-      await notifyGamePartner(pairId, uid, "🎉 Dynamic Duo!", `${myName} knows you perfectly and scored a point!`);
+      if (awarded) {
+        setConfettiKey((k) => k + 1);
+        await notifyGamePartner(pairId, uid, "🎉 Dynamic Duo!", `${myName} knows you perfectly and scored a point!`);
+      }
     } else {
       // Modern inline warning state
       setErrorMessage(`"${cleanGuess}" isn't correct. Try again!`);
@@ -136,7 +149,7 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
       {/* IDLE STATE */}
       {game.status === "idle" && (
         <>
-          <Text style={gameStyles.description}>Test your partner's knowledge about you by writing a question and its correct answer.</Text>
+          <Text style={gameStyles.description}>Test your partner&apos;s knowledge about you by writing a question and its correct answer.</Text>
           
           <Text style={gameStyles.label}>Your Question</Text>
           <TextInput
@@ -169,12 +182,12 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
           {isCreator ? (
             <View style={gameStyles.waitingContainer}>
               <ActivityIndicator size="small" color="#6366f1" style={{ marginBottom: 12 }} />
-              <Text style={gameStyles.waitingText}>Question locked: <Text style={{ fontWeight: "700" }}>"{game.prompt}"</Text></Text>
+              <Text style={gameStyles.waitingText}>Question locked: <Text style={{ fontWeight: "700" }}>{`“${game.prompt}”`}</Text></Text>
               
               {/* LIVE WRONG GUESS TRACKER */}
               {game.wrongGuesses && game.wrongGuesses.length > 0 ? (
                 <View style={styles.wrongGuessesBox}>
-                  <Text style={styles.wrongGuessesTitle}>Partner's incorrect attempts:</Text>
+                  <Text style={styles.wrongGuessesTitle}>Partner&apos;s incorrect attempts:</Text>
                   <View style={styles.badgeContainer}>
                     {game.wrongGuesses.map((g: string, idx: number) => (
                       <View key={idx} style={styles.guessBadge}>

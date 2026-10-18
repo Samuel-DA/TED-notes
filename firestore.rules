@@ -1,0 +1,333 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function pairMembers(pairId) {
+      return get(/databases/$(database)/documents/pairs/$(pairId)).data.members;
+    }
+
+    function pairMembersAfter(pairId) {
+      return getAfter(/databases/$(database)/documents/pairs/$(pairId)).data.members;
+    }
+
+    function isPairMember(pairId) {
+      return isSignedIn() && request.auth.uid in pairMembers(pairId);
+    }
+
+    function arePartners(otherUid, pairId) {
+      return isPairMember(pairId) && otherUid in pairMembers(pairId);
+    }
+
+    match /users/{uid} {
+      allow get: if isSignedIn() && (
+        request.auth.uid == uid ||
+        (resource.data.pairId is string && arePartners(uid, resource.data.pairId))
+      );
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly([
+          "uid", "name", "email", "pairId", "createdAt"
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.pairId == null;
+
+      allow update: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "name", "expoPushToken", "pairId"
+        ])
+        && (
+          request.resource.data.pairId == resource.data.pairId ||
+          (
+            request.resource.data.pairId is string
+            && request.auth.uid in pairMembersAfter(request.resource.data.pairId)
+          )
+        );
+
+      allow delete: if false;
+
+      match /pushTokens/{tokenId} {
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly([
+            "token", "platform", "projectId", "updatedAt"
+          ])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() >= 20
+          && request.resource.data.token.size() <= 300
+          && request.resource.data.platform in ["ios", "android"]
+          && request.resource.data.projectId is string
+          && request.resource.data.updatedAt is timestamp;
+        allow delete: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /pairs/{pairId} {
+      // A prospective partner may fetch a known, high-entropy invite code.
+      // Collection scans are never permitted.
+      allow get: if isSignedIn() && (
+        request.auth.uid in resource.data.members ||
+        resource.data.members.size() == 1
+      );
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(["members", "names", "createdAt"])
+        && request.resource.data.members.size() == 1
+        && request.resource.data.members[0] == request.auth.uid
+        && request.resource.data.names.keys().hasOnly([request.auth.uid])
+        && request.resource.data.createdAt is timestamp;
+
+      allow update: if isSignedIn() && (
+        // Normal pair content updates cannot alter identity or membership.
+        (
+          request.auth.uid in resource.data.members
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "moods", "moodDates", "notes", "noteTimestamps", "dailyConfirmations"
+            , "nextVisitAt", "nextVisitUpdatedAt"
+          ])
+        ) ||
+        // Joining is a one-time 1 -> 2 member transition, changing only identity fields.
+        (
+          resource.data.members.size() == 1
+          && request.resource.data.members.size() == 2
+          && !(request.auth.uid in resource.data.members)
+          && request.auth.uid in request.resource.data.members
+          && resource.data.members[0] in request.resource.data.members
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "members", "names"
+          ])
+          && request.resource.data.names.diff(resource.data.names)
+            .affectedKeys().hasOnly([request.auth.uid])
+        )
+      );
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isPairMember(pairId);
+
+        allow create: if isPairMember(pairId)
+          && request.resource.data.keys().hasOnly([
+            "text", "type", "senderId", "createdAt", "localCreatedAt",
+            "readBy", "replyTo", "reactions"
+          ])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.type in ["text", "image", "file"]
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.readBy == [request.auth.uid];
+
+        allow update: if isPairMember(pairId) && (
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(["readBy"])
+            && request.resource.data.readBy is list
+            && resource.data.readBy.toSet()
+              .difference(request.resource.data.readBy.toSet()).size() == 0
+            && request.resource.data.readBy.toSet()
+              .difference(resource.data.readBy.toSet())
+              .hasOnly([request.auth.uid])
+          ) ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(["reactions"])
+            && request.resource.data.reactions is map
+            && request.resource.data.reactions
+              .diff(resource.data.get("reactions", {}))
+              .affectedKeys().hasOnly([request.auth.uid])
+          )
+        );
+
+        allow delete: if false;
+      }
+
+      match /typing/{uid} {
+        allow read: if isPairMember(pairId);
+        allow create, update: if isPairMember(pairId)
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(["typing", "updatedAt"])
+          && request.resource.data.typing is bool
+          && request.resource.data.updatedAt is timestamp;
+        allow delete: if isPairMember(pairId) && request.auth.uid == uid;
+      }
+
+      match /todos/{todoId} {
+        allow read: if isPairMember(pairId);
+        allow create: if isPairMember(pairId)
+          && request.resource.data.keys().hasOnly([
+            "text", "completed", "order", "createdAt"
+          ])
+          && request.resource.data.text is string
+          && request.resource.data.completed is bool
+          && request.resource.data.order is number
+          && request.resource.data.createdAt is timestamp;
+        allow update: if isPairMember(pairId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["text", "completed", "order"]);
+        allow delete: if isPairMember(pairId);
+      }
+
+      match /loveNotes/{noteId} {
+        allow read, create, update: if isPairMember(pairId);
+        allow delete: if false;
+      }
+
+      match /careDates/{dateId} {
+        allow read: if isPairMember(pairId);
+        allow create: if isPairMember(pairId)
+          && request.resource.data.keys().hasOnly([
+            "title", "dateAt", "note", "createdBy", "createdAt"
+          ])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.dateAt is number
+          && request.resource.data.note is string
+          && request.resource.data.note.size() <= 500
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt is timestamp;
+        allow update: if isPairMember(pairId)
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["title", "dateAt", "note"]);
+        allow delete: if isPairMember(pairId);
+      }
+
+      match /periodTracker/{trackerId} {
+        allow read: if isPairMember(pairId);
+        allow create, update: if isPairMember(pairId)
+          && trackerId == "shared"
+          && request.resource.data.keys().hasOnly([
+            "lastPeriodStart", "cycleLength", "periodLength",
+            "updatedBy", "updatedByName", "updatedAt"
+          ])
+          && request.resource.data.lastPeriodStart is string
+          && request.resource.data.lastPeriodStart.size() == 10
+          && request.resource.data.cycleLength is int
+          && request.resource.data.cycleLength >= 21
+          && request.resource.data.cycleLength <= 40
+          && request.resource.data.periodLength is int
+          && request.resource.data.periodLength >= 2
+          && request.resource.data.periodLength <= 10
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.updatedByName is string
+          && request.resource.data.updatedAt is timestamp;
+        allow delete: if false;
+      }
+
+      match /routines/{ownerUid} {
+        allow read: if isPairMember(pairId);
+        allow create, update: if isPairMember(pairId)
+          && request.auth.uid == ownerUid
+          && request.resource.data.keys().hasOnly([
+            "ownerUid", "items", "completions", "updatedAt"
+          ])
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.items is list
+          && request.resource.data.items.size() <= 30
+          && request.resource.data.completions is map
+          && request.resource.data.updatedAt is timestamp;
+        allow delete: if isPairMember(pairId) && request.auth.uid == ownerUid;
+      }
+
+      match /careProfiles/{ownerUid} {
+        allow read: if isPairMember(pairId);
+        allow create, update: if isPairMember(pairId)
+          && request.auth.uid == ownerUid
+          && request.resource.data.keys().hasOnly([
+            "ownerUid", "needs", "otish", "updatedAt"
+          ])
+          && request.resource.data.keys().hasAll([
+            "ownerUid", "needs", "updatedAt"
+          ])
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.needs is list
+          && request.resource.data.needs.size() <= 30
+          && request.resource.data.updatedAt is timestamp
+          && (
+            !request.resource.data.keys().hasAny(["otish"])
+            || (
+              request.resource.data.otish is map
+              && request.resource.data.otish.keys().hasOnly(["value", "updatedAt"])
+              && request.resource.data.otish.value is int
+              && request.resource.data.otish.value >= 1
+              && request.resource.data.otish.value <= 10
+              && request.resource.data.otish.updatedAt is timestamp
+            )
+          );
+        allow delete: if isPairMember(pairId) && request.auth.uid == ownerUid;
+      }
+
+      match /voiceCapsules/{capsuleId} {
+        allow read: if isPairMember(pairId);
+        allow create: if isPairMember(pairId)
+          && request.resource.data.keys().hasOnly([
+            "storagePath", "senderId", "senderName", "durationMs", "createdAt", "expiresAt"
+          ])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.senderName is string
+          && request.resource.data.durationMs is number
+          && request.resource.data.durationMs > 0
+          && request.resource.data.durationMs <= 60000
+          && request.resource.data.storagePath
+            == "pairs/" + pairId + "/voiceCapsules/" + request.auth.uid + "/" + capsuleId + ".m4a"
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.expiresAt is timestamp
+          && request.resource.data.expiresAt > request.time
+          && request.resource.data.expiresAt <= request.time + duration.value(91, "d");
+        allow update: if false;
+        allow delete: if isPairMember(pairId)
+          && resource.data.senderId == request.auth.uid;
+      }
+
+      match /notificationEvents/{eventId} {
+        allow read: if isPairMember(pairId);
+        allow create: if isPairMember(pairId)
+          && request.resource.data.keys().hasOnly([
+            "actorUid", "title", "body", "route", "action", "createdAt"
+          ])
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 100
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 500
+          && request.resource.data.route in [
+            "home", "chat", "plans", "care", "care_support",
+            "care_dates", "care_period", "care_routine", "care_voice", "games"
+          ]
+          && request.resource.data.action is string
+          && request.resource.data.action.size() > 0
+          && request.resource.data.action.size() <= 64
+          && request.resource.data.createdAt is timestamp;
+        allow update, delete: if false;
+      }
+
+      match /games/{gameId} {
+        allow read, create, update: if isPairMember(pairId);
+        allow delete: if false;
+      }
+
+      match /scoreboard/{scoreboardId} {
+        allow read: if isPairMember(pairId);
+        allow create: if isPairMember(pairId)
+          && request.resource.data.keys().hasOnly([request.auth.uid, "updatedAt"])
+          && request.resource.data[request.auth.uid] in [0, 1];
+        allow update: if isPairMember(pairId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([request.auth.uid, "updatedAt"])
+          && (
+            request.resource.data[request.auth.uid] == 0 ||
+            request.resource.data[request.auth.uid]
+              == resource.data.get(request.auth.uid, 0) + 1
+          );
+        allow delete: if false;
+      }
+    }
+  }
+}

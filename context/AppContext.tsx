@@ -1,7 +1,7 @@
 // context/AppContext.tsx
-import { registerForPushNotificationsAsync } from "@/services/notifications";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import { registerForPushNotificationsAsync, removePushTokenForUser, savePushTokenForUser } from "@/services/notifications";
+import { doc, onSnapshot } from "firebase/firestore";
+import React, { createContext, useCallback, useContext, useEffect, useState, useRef } from "react";
 import { AppState, AppStateStatus, Platform } from "react-native"; 
 import * as LocalAuthentication from "expo-local-authentication";
 import { auth, db } from "../firebase";
@@ -25,18 +25,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [pairId, setPairId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // App Lock State Variables - Defaults to false on iOS to prevent cold start freezes
-  const [isLocked, setIsLocked] = useState<boolean>(Platform.OS !== 'ios');
-  const isLockedRef = useRef<boolean>(Platform.OS !== 'ios');
+  // Start locked on native platforms. Web has no local biometric capability.
+  const [isLocked, setIsLocked] = useState<boolean>(Platform.OS !== "web");
+  const isLockedRef = useRef<boolean>(Platform.OS !== "web");
   const isAuthenticating = useRef<boolean>(false);
+  const appState = useRef<AppStateStatus>(AppState.currentState);
   
-  // Debounce Trackers
+  // App-lock lifecycle tracking. Short system transitions (biometrics,
+  // permission sheets and Android activity recreation) must not re-lock.
   const lastBackgroundTime = useRef<number>(0);
-  const stateChangeTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const authenticateBiometrics = async (): Promise<boolean> => {
-    if (Platform.OS === 'ios') return true;
+  const authenticateBiometrics = useCallback(async (): Promise<boolean> => {
+    if (Platform.OS === "web") {
+      setIsLocked(false);
+      isLockedRef.current = false;
+      return true;
+    }
     if (isAuthenticating.current) return false;
+
+    isAuthenticating.current = true;
 
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -48,28 +55,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return true;
       }
 
-      isAuthenticating.current = true;
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: "Unlock TED Space Vault",
         fallbackLabel: "Use Device Passcode",
         disableDeviceFallback: false,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      isAuthenticating.current = false;
-
       if (result.success) {
         setIsLocked(false);
         isLockedRef.current = false;
+        lastBackgroundTime.current = 0;
+        appState.current = "active";
         return true;
       }
       return false;
     } catch (error) {
-      isAuthenticating.current = false;
       console.error("Biometric security error:", error);
       return false;
+    } finally {
+      isAuthenticating.current = false;
+      appState.current = AppState.currentState;
     }
-  };
+  }, []);
 
   // 1. Firebase Data & Auth Listener
   useEffect(() => {
@@ -144,65 +151,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 2. Push Notifications Setup
   useEffect(() => {
-    if (uid) {
-      registerForPushNotificationsAsync().then((token) => {
-        if (token) {
-          updateDoc(doc(db, "users", uid), {
-            expoPushToken: token,
-          }).catch((err) => {
-            console.error("Error saving push token:", err);
-          });
-        }
-      });
+    let active = true;
+    let registeredToken: string | null = null;
+    if (uid && myName) {
+      registerForPushNotificationsAsync()
+        .then(async (token) => {
+          if (!active || !token) return;
+          registeredToken = token;
+          await savePushTokenForUser(uid, token);
+        })
+        .catch((err) => console.error("Error registering push notifications:", err));
     }
-  }, [uid]);
+    return () => {
+      active = false;
+      if (uid && registeredToken) void removePushTokenForUser(uid, registeredToken).catch(console.warn);
+    };
+  }, [myName, uid]);
 
   // 3. Debounced Single-Instance AppState Lifecycle Handler
   useEffect(() => {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === "web") {
       setIsLocked(false);
       isLockedRef.current = false;
       return;
     }
 
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (stateChangeTimeout.current) {
-        clearTimeout(stateChangeTimeout.current);
-      }
+      const previousAppState = appState.current;
 
+      // Face ID, Android biometrics and permission sheets briefly move the
+      // activity through inactive/background. Do not turn them into a second
+      // lock prompt.
       if (isAuthenticating.current) {
+        appState.current = nextAppState;
         return;
       }
 
+      appState.current = nextAppState;
+
       const now = Date.now();
 
-      if (nextAppState === "background" || nextAppState === "inactive") {
+      if (nextAppState === "background" && previousAppState !== "background") {
         lastBackgroundTime.current = now;
-        
-        stateChangeTimeout.current = setTimeout(() => {
-          setIsLocked(true);
-          isLockedRef.current = true;
-        }, 1000);
       }
 
-      if (nextAppState === "active") {
-        const dynamicBailout = now - lastBackgroundTime.current < 1500;
-        
-        if (dynamicBailout && isLockedRef.current === false) {
-          return;
-        }
-
-        authenticateBiometrics();
+      if (
+        nextAppState === "active" &&
+        previousAppState === "background" &&
+        lastBackgroundTime.current > 0 &&
+        now - lastBackgroundTime.current >= 5000
+      ) {
+        setIsLocked(true);
+        isLockedRef.current = true;
       }
+
+      if (nextAppState === "active") lastBackgroundTime.current = 0;
     };
 
     const subscription = AppState.addEventListener("change", handleAppStateChange);
 
     return () => {
       subscription.remove();
-      if (stateChangeTimeout.current) clearTimeout(stateChangeTimeout.current);
     };
-  }, []);
+  }, [authenticateBiometrics]);
 
   return (
     <AppContext.Provider 

@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { doc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
-import { Heart } from "lucide-react-native";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import { arrayRemove, arrayUnion, doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { HeartPulse } from "lucide-react-native";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Keyboard,
@@ -10,7 +10,6 @@ import {
   ScrollView,
   Text,
   View,
-  Pressable,
   ActivityIndicator,
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
@@ -25,13 +24,19 @@ import MoodSelector from "../../components/MoodSelector";
 import PrayerCard from "../../components/PrayerCard";
 import VerseCard from "../../components/VerseCard";
 import DailyQuestionCard from "../../components/DailyQuestionCard";
+import DailyConnectionCard from "../../components/DailyConnectionCard";
+import LongDistanceCard from "../../components/LongDistanceCard";
+import AppHeader from "@/components/AppHeader";
 
 import { useApp } from "../../context/AppContext";
 import { db } from "../../firebase";
-import { sendPushNotification } from "@/services/notifications";
+import { notifyPartner } from "@/services/notifications";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { palette } from "@/constants/design";
 
 export default function Home() {
   const { uid, myName, partnerName, pairId } = useApp();
+  const insets = useSafeAreaInsets();
 
   /** DATA STATES */
   const [verse, setVerse] = useState<VerseData | null>(null);
@@ -50,6 +55,9 @@ export default function Home() {
 
   const [prayerConfirmations, setPrayerConfirmations] = useState<string[]>([]);
   const [verseConfirmations, setVerseConfirmations] = useState<string[]>([]);
+  const [dailyHistory, setDailyHistory] = useState<
+    Record<string, { checkInUsers?: string[] }>
+  >({});
 
   /** MOUNTED SPRING ANIMATION HOOKS */
   const prayerFade = useRef(new Animated.Value(0)).current;
@@ -65,18 +73,6 @@ export default function Home() {
     const localDate = new Date(d.getTime() - offset * 60 * 1000);
     return localDate.toISOString().split("T")[0];
   };
-
-  const getPartnerPushToken = useCallback(async (pUid: string) => {
-    try {
-      const partnerDoc = await getDoc(doc(db, "users", pUid));
-      if (partnerDoc.exists()) {
-        return partnerDoc.data().expoPushToken || null;
-      }
-    } catch (e) {
-      console.error("Error fetching token:", e);
-    }
-    return null;
-  }, []);
 
   /** 🚀 FIXED LIVE FIRESTORE SYNC ENGINE (DECOUPLED FROM RECURSIVE WRITES) */
   useEffect(() => {
@@ -94,7 +90,9 @@ export default function Home() {
       const members = data.members || [];
       const todayString = getLocalDateString();
 
-      const dailyData = data.dailyConfirmations?.[todayString] || {};
+      const history = data.dailyConfirmations || {};
+      const dailyData = history[todayString] || {};
+      setDailyHistory(history);
       setPrayerConfirmations(dailyData.prayedUsers || []);
       setVerseConfirmations(dailyData.readUsers || []);
       setQuestionAnswers(dailyData.questionAnswers || {});
@@ -153,7 +151,7 @@ export default function Home() {
       Animated.timing(questionFade, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.spring(questionScale, { toValue: 1, friction: 7, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [prayerFade, prayerScale, questionFade, questionScale, verseFade, verseScale]);
 
   /** ACTIONS */
   const sendThinkingOfYouPing = async () => {
@@ -162,14 +160,7 @@ export default function Home() {
     setIsSendingPing(true);
 
     try {
-      const token = await getPartnerPushToken(actualPartnerUid);
-      if (token) {
-        await sendPushNotification(
-          token,
-          "Thinking of you... 💞",
-          `${myName} is thinking about you right now!`,
-        );
-      }
+      await notifyPartner({ pairId: pairId || "", currentUid: uid || "", route: "home", action: "thinking_of_you", title: "Thinking of you... 💞", body: `${myName} is thinking about you right now!` });
     } catch (e) {
       console.error(e);
     } finally {
@@ -190,14 +181,7 @@ export default function Home() {
       Keyboard.dismiss();
 
       if (actualPartnerUid) {
-        const token = await getPartnerPushToken(actualPartnerUid);
-        if (token) {
-          await sendPushNotification(
-            token,
-            "Question Answered! 💬",
-            `${myName} answered today's prompt. Reveal what they wrote!`,
-          );
-        }
+        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "daily_answer", title: "Question Answered! 💬", body: `${myName} answered today's prompt. Reveal what they wrote!` });
       }
     } catch (e) {
       console.error(e);
@@ -208,22 +192,14 @@ export default function Home() {
     if (!pairId || !uid) return;
     const todayString = getLocalDateString();
     const isAlreadyConfirmed = prayerConfirmations.includes(uid);
-    const updatedArray = isAlreadyConfirmed
-      ? prayerConfirmations.filter((id) => id !== uid)
-      : [...prayerConfirmations, uid];
-
     try {
       await updateDoc(doc(db, "pairs", pairId), {
-        [`dailyConfirmations.${todayString}.prayedUsers`]: updatedArray,
+        [`dailyConfirmations.${todayString}.prayedUsers`]: isAlreadyConfirmed
+          ? arrayRemove(uid)
+          : arrayUnion(uid),
       });
       if (!isAlreadyConfirmed && actualPartnerUid) {
-        const token = await getPartnerPushToken(actualPartnerUid);
-        if (token)
-          await sendPushNotification(
-            token,
-            "Amen! 🙏",
-            `${myName} has prayed over the prayer point today!`,
-          );
+        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "prayer_complete", title: "Amen! 🙏", body: `${myName} has prayed over the prayer point today!` });
       }
     } catch (e) {
       console.error(e);
@@ -234,22 +210,14 @@ export default function Home() {
     if (!pairId || !uid) return;
     const todayString = getLocalDateString();
     const isAlreadyConfirmed = verseConfirmations.includes(uid);
-    const updatedArray = isAlreadyConfirmed
-      ? verseConfirmations.filter((id) => id !== uid)
-      : [...verseConfirmations, uid];
-
     try {
       await updateDoc(doc(db, "pairs", pairId), {
-        [`dailyConfirmations.${todayString}.readUsers`]: updatedArray,
+        [`dailyConfirmations.${todayString}.readUsers`]: isAlreadyConfirmed
+          ? arrayRemove(uid)
+          : arrayUnion(uid),
       });
       if (!isAlreadyConfirmed && actualPartnerUid) {
-        const token = await getPartnerPushToken(actualPartnerUid);
-        if (token)
-          await sendPushNotification(
-            token,
-            "Daily Bread 📖",
-            `${myName} finished reading today's scripture verse!`,
-          );
+        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "verse_complete", title: "Daily Bread 📖", body: `${myName} finished reading today's scripture verse!` });
       }
     } catch (e) {
       console.error(e);
@@ -265,16 +233,30 @@ export default function Home() {
         [`moodDates.${uid}`]: getLocalDateString(),
       });
       if (actualPartnerUid) {
-        const token = await getPartnerPushToken(actualPartnerUid);
-        if (token)
-          await sendPushNotification(
-            token,
-            "Mood Update! Status check 💕",
-            `${myName} changed their mood to ${emoji}`,
-          );
+        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "mood_updated", title: "Mood Update! Status check 💕", body: `${myName} changed their mood to ${emoji}` });
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const toggleDailyCheckIn = async () => {
+    if (!pairId || !uid) return;
+    const todayString = getLocalDateString();
+    const checkedIn = dailyHistory[todayString]?.checkInUsers?.includes(uid) ?? false;
+
+    try {
+      await updateDoc(doc(db, "pairs", pairId), {
+        [`dailyConfirmations.${todayString}.checkInUsers`]: checkedIn
+          ? arrayRemove(uid)
+          : arrayUnion(uid),
+      });
+
+      if (!checkedIn && actualPartnerUid) {
+        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "daily_checkin", title: "Daily connection 💞", body: `${myName || "Your partner"} checked in for today. Join them!` });
+      }
+    } catch (error) {
+      console.error("Unable to update daily check-in:", error);
     }
   };
 
@@ -286,29 +268,49 @@ export default function Home() {
         [`noteTimestamps.${uid}`]: Date.now(),
       });
       if (actualPartnerUid) {
-        const token = await getPartnerPushToken(actualPartnerUid);
-        if (token)
-          await sendPushNotification(
-            token,
-            "New Love Note left for you 💜",
-            `${myName} updated their love note for you!`,
-          );
+        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "love_note_updated", title: "New Love Note left for you 💜", body: `${myName} updated their love note for you!` });
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  const iPrayed = prayerConfirmations.includes(uid);
+  const currentUid = uid ?? "";
+  const iPrayed = prayerConfirmations.includes(currentUid);
   const partnerPrayed = actualPartnerUid ? prayerConfirmations.includes(actualPartnerUid) : false;
-  const iRead = verseConfirmations.includes(uid);
+  const iRead = verseConfirmations.includes(currentUid);
   const partnerRead = actualPartnerUid ? verseConfirmations.includes(actualPartnerUid) : false;
 
-  const myAnswer = questionAnswers[uid] || "";
+  const myAnswer = questionAnswers[currentUid] || "";
   const partnerAnswer = actualPartnerUid ? questionAnswers[actualPartnerUid] || "" : "";
+  const todayCheckIns = dailyHistory[getLocalDateString()]?.checkInUsers || [];
+  const iCheckedIn = todayCheckIns.includes(currentUid);
+  const partnerCheckedIn = actualPartnerUid
+    ? todayCheckIns.includes(actualPartnerUid)
+    : false;
+
+  const connectionStreak = (() => {
+    if (!currentUid || !actualPartnerUid) return 0;
+    let streak = 0;
+    const cursor = new Date();
+    const todayComplete = iCheckedIn && partnerCheckedIn;
+    if (!todayComplete) cursor.setDate(cursor.getDate() - 1);
+
+    for (let day = 0; day < 3660; day += 1) {
+      const offset = cursor.getTimezoneOffset();
+      const dateKey = new Date(cursor.getTime() - offset * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      const users = dailyHistory[dateKey]?.checkInUsers || [];
+      if (!users.includes(currentUid) || !users.includes(actualPartnerUid)) break;
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  })();
 
   return (
-    <LinearGradient colors={["#f472b6", "#c084fc"]} style={{ flex: 1 }}>
+    <LinearGradient colors={[palette.ink, "#34203D", "#6A315C"]} style={{ flex: 1 }}>
       {loading || !uid || !pairId ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color="#fff" />
@@ -325,8 +327,8 @@ export default function Home() {
           <ScrollView
             contentContainerStyle={{
               paddingHorizontal: 16,
-              paddingTop: 20,
-              paddingBottom: Platform.OS === "android" ? 90 : 60,
+              paddingTop: insets.top + 18,
+              paddingBottom: 125,
             }}
             /* ⚡️ FIX: Bypasses keyboard layout focus interceptors to enable immediate touch registration */
             keyboardShouldPersistTaps="always"
@@ -335,38 +337,24 @@ export default function Home() {
             <ConfettiCannon count={40} origin={{ x: -10, y: 0 }} fadeOut />
 
             {/* HEADER BLOCK */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
-              <Pressable
-                onPress={sendThinkingOfYouPing}
-                /* ⚡️ FIX: Expanded explicit padding bounds prevents dropped target registers */
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                disabled={isSendingPing}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.4 : 1,
-                })}
-              >
-                <Heart
-                  color="#fff"
-                  size={36}
-                  fill={isSendingPing ? "#ffe4e6" : "#fff"}
-                  style={{
-                    marginRight: 10,
-                    transform: [{ scale: isSendingPing ? 1.1 : 1 }],
-                  }}
-                />
-              </Pressable>
-              <View>
-                <Text style={{ fontSize: 28, fontWeight: "800", color: "#fff" }}>
-                  TED Space
-                </Text>
-                <Text style={{ color: "#fce7f3", fontSize: 14 }}>
-                  Just for {myName} & {partnerName || "Partner"}
-                </Text>
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontStyle: "italic" }}>
-                  Tap 🤍 to ping
-                </Text>
-              </View>
-            </View>
+            <AppHeader
+              eyebrow="YOUR PRIVATE SPACE"
+              title={`Hi, ${myName || "love"}`}
+              subtitle={`Connected with ${partnerName || "your partner"}\n${isSendingPing ? "Sending your Thinking of You…" : "Tap the heart icon to send a Thinking of You"}`}
+              icon={<HeartPulse color="#fff" fill="rgba(255,255,255,0.18)" size={25} />}
+              onIconPress={sendThinkingOfYouPing}
+              iconAccessibilityLabel="Send Thinking of You"
+            />
+
+            <DailyConnectionCard
+              checkedIn={iCheckedIn}
+              partnerCheckedIn={partnerCheckedIn}
+              partnerName={partnerName || "Partner"}
+              streak={connectionStreak}
+              onToggle={toggleDailyCheckIn}
+            />
+
+            <LongDistanceCard pairId={pairId} uid={uid || ""} myName={myName || "Your partner"} partnerName={partnerName || "your love"} />
 
             {/* MODULAR COMPONENT BLOCKS */}
             <PrayerCard

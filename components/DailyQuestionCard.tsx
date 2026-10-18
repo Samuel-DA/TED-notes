@@ -151,7 +151,7 @@ export default function DailyQuestionCard({
                 marginBottom: 2,
               }}
             >
-              {partnerName.toUpperCase() || "PARTNER"}'S ANSWER
+              {partnerName.toUpperCase() || "PARTNER"}&apos;S ANSWER
             </Text>
 
             {!partnerAnswer ? (
