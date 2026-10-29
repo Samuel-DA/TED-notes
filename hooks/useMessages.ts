@@ -19,7 +19,7 @@ export function useMessages(pairId?: string, userId?: string) {
     const ref = collection(db, "pairs", pairId, "messages");
     const q = query(ref, orderBy("createdAt", "asc"), limitToLast(100));
 
-    const unsub = onSnapshot(q, (snap) => {
+    const unsub = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       const msgs: Message[] = snap.docs.map((d) => ({
         id: d.id,
         ...(d.data() as Omit<Message, "id">),
@@ -36,7 +36,7 @@ export function useMessages(pairId?: string, userId?: string) {
 
         setUnreadCount(unread);
       }
-    });
+    }, (error) => console.error("Live chat listener failed:", error));
 
     return unsub;
   }, [pairId, userId]);

@@ -106,10 +106,29 @@ export default function VoicePage() {
     }
     const permission = await requestRecordingPermissionsAsync(); if (!permission.granted) return Alert.alert("Microphone permission needed", "Allow microphone access to record a comfort capsule."); await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true }); await recorder.prepareToRecordAsync(); recorder.record();
   };
-  return <CarePage eyebrow="VOICE COMFORT" title="A message they can keep" subtitle={`Leave ${partnerName || "your partner"} a reassuring voice note for difficult moments.`} icon={<Mic color="#fff" size={23} />}>
+  return <CarePage eyebrow="VOICE COMFORT" title="A message they can keep" subtitle={`Leave ${partnerName} a reassuring voice note for difficult moments.`} icon={<Mic color="#fff" size={23} />}>
     <View style={styles.recorder}><View style={styles.rings}><View style={[styles.recordCircle, state.isRecording && styles.recording]}>{state.isRecording ? <Waves color="#fff" size={31} /> : <Mic color="#fff" size={31} />}</View></View><Text style={styles.timer}>{state.isRecording ? `${Math.floor(state.durationMillis / 60000)}:${String(Math.floor(state.durationMillis / 1000) % 60).padStart(2, "0")}` : "Ready when you are"}</Text><Text style={styles.hint}>{state.isRecording ? "Recording sends automatically at 60 seconds." : "Record a short message they can replay whenever they need you."}</Text><Pressable onPress={toggle} disabled={busy} style={[styles.recordButton, state.isRecording && styles.stopButton]}>{busy ? <ActivityIndicator color="#fff" /> : state.isRecording ? <Square color="#fff" fill="#fff" size={18} /> : <Mic color="#fff" size={20} />}<Text style={styles.recordText}>{busy ? "Securing & sending…" : state.isRecording ? "Stop and send" : "Start recording"}</Text></Pressable><Text style={styles.privacy}>Pair-only storage · Maximum 60 seconds and 10 MB · Removed after 90 days</Text></View>
     <CareCard title="Your comfort library" subtitle={capsules.length ? `${capsules.length} private recording${capsules.length === 1 ? "" : "s"}` : "Your recordings will appear here"}>{capsules.length ? capsules.map((item) => <CapsuleItem key={item.id} item={item} uid={uid || ""} pairId={pairId || ""} />) : <Text style={styles.empty}>No voice capsules yet. A few sincere words can mean a lot on a difficult day.</Text>}</CareCard>
   </CarePage>;
 }
 
-const styles = StyleSheet.create({ recorder: { backgroundColor: "rgba(33,23,42,0.72)", borderRadius: 28, padding: 22, alignItems: "center", marginBottom: 14, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" }, rings: { width: 116, height: 116, borderRadius: 58, backgroundColor: "rgba(232,93,117,0.1)", alignItems: "center", justifyContent: "center", borderWidth: 10, borderColor: "rgba(232,93,117,0.08)" }, recordCircle: { width: 76, height: 76, borderRadius: 38, backgroundColor: palette.rose, alignItems: "center", justifyContent: "center" }, recording: { backgroundColor: "#C23D58" }, timer: { color: "#fff", fontSize: 24, fontWeight: "900", marginTop: 15 }, hint: { color: "#CDBFD3", fontSize: 11.5, lineHeight: 17, textAlign: "center", maxWidth: 280, marginTop: 5 }, recordButton: { minHeight: 50, minWidth: 210, paddingHorizontal: 20, borderRadius: 17, backgroundColor: palette.rose, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 17 }, stopButton: { backgroundColor: "#A92F49" }, recordText: { color: "#fff", fontWeight: "900", fontSize: 13 }, privacy: { color: "#CDBFD3", fontSize: 9.5, textAlign: "center", marginTop: 12 }, item: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "#F0EAF1" }, play: { width: 43, height: 43, borderRadius: 22, backgroundColor: palette.plum, alignItems: "center", justifyContent: "center" }, name: { color: palette.text, fontSize: 13, fontWeight: "900" }, wave: { height: 20, flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 }, bar: { width: 3, borderRadius: 2, backgroundColor: "#CDA8C8" }, meta: { color: palette.muted, fontSize: 9.5 }, delete: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#FBF2F5", alignItems: "center", justifyContent: "center" }, empty: { color: palette.muted, fontSize: 12, lineHeight: 19, textAlign: "center", paddingVertical: 20 }, });
+const styles = StyleSheet.create({
+  recorder: { backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 16, padding: 22, alignItems: "center", marginBottom: 14, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.13)" },
+  rings: { width: 116, height: 116, borderRadius: 36, backgroundColor: "rgba(181,68,90,0.12)", alignItems: "center", justifyContent: "center", borderWidth: 10, borderColor: "rgba(181,68,90,0.08)" },
+  recordCircle: { width: 76, height: 76, borderRadius: 24, backgroundColor: palette.rose, alignItems: "center", justifyContent: "center" },
+  recording: { backgroundColor: "#953548" },
+  timer: { color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 15 },
+  hint: { color: "#CDBFD3", fontSize: 12.5, lineHeight: 18, textAlign: "center", maxWidth: 280, marginTop: 5 },
+  recordButton: { minHeight: 50, minWidth: 210, paddingHorizontal: 20, borderRadius: 14, backgroundColor: palette.rose, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 17 },
+  stopButton: { backgroundColor: "#8C3043" },
+  recordText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  privacy: { color: "#CDBFD3", fontSize: 10.5, lineHeight: 15, textAlign: "center", marginTop: 12 },
+  item: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "#F0EAF1" },
+  play: { width: 43, height: 43, borderRadius: 14, backgroundColor: palette.plum, alignItems: "center", justifyContent: "center" },
+  name: { color: palette.text, fontSize: 14, fontWeight: "700" },
+  wave: { height: 20, flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 },
+  bar: { width: 3, borderRadius: 2, backgroundColor: "#CDA8C8" },
+  meta: { color: palette.muted, fontSize: 10.5 },
+  delete: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#FBF2F5", alignItems: "center", justifyContent: "center" },
+  empty: { color: palette.muted, fontSize: 13, lineHeight: 19, textAlign: "center", paddingVertical: 20 },
+});

@@ -72,7 +72,7 @@ async function removeInvalidToken(entry) {
   });
 }
 
-async function getRecipientTokens(uid) {
+async function getRecipientDelivery(uid) {
   const userRef = db.doc(`users/${uid}`);
   const [tokensSnapshot, userSnapshot] = await Promise.all([
     userRef.collection("pushTokens").get(),
@@ -92,7 +92,10 @@ async function getRecipientTokens(uid) {
     byToken.set(legacyToken, { token: legacyToken, legacyUid: uid });
   }
 
-  return [...byToken.values()];
+  return {
+    tokens: [...byToken.values()],
+    showPreview: userSnapshot.data()?.notificationPreview !== false,
+  };
 }
 
 async function processReceiptDocument(receiptDocument) {
@@ -198,7 +201,8 @@ exports.deliverPartnerNotification = onDocumentCreated({
       return;
     }
 
-    const tokenEntries = await getRecipientTokens(recipientUid);
+    const delivery = await getRecipientDelivery(recipientUid);
+    const tokenEntries = delivery.tokens;
     if (tokenEntries.length === 0) {
       await eventRef.set({
         status: "no_tokens",
@@ -212,8 +216,8 @@ exports.deliverPartnerNotification = onDocumentCreated({
       to: token,
       sound: "default",
       badge: 1,
-      title: notification.title.slice(0, 100),
-      body: notification.body.slice(0, 500),
+      title: delivery.showPreview ? notification.title.slice(0, 100) : "TED Space",
+      body: delivery.showPreview ? notification.body.slice(0, 500) : "You have a new private update from your partner.",
       channelId: "default",
       priority: "high",
       data: {

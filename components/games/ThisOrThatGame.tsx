@@ -133,7 +133,7 @@ export default function ThisOrThatGame({ pairId, uid, myName, partnerName }: Pro
         <Text style={styles.status}>Choose one—your answer stays hidden until you both pick.</Text>
       ) : !bothAnswered ? (
         <View style={styles.waitingRow}>
-          <ActivityIndicator size="small" color="#7c3aed" />
+          <ActivityIndicator size="small" color="#B5445A" />
           <Text style={styles.status}>Waiting for {partnerName}…</Text>
         </View>
       ) : (
@@ -155,27 +155,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     margin: 16,
     padding: 20,
-    borderRadius: 22,
+    borderRadius: 16,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
   },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: "#312e81", fontSize: 22, fontWeight: "900", flex: 1 },
-  round: { color: "#7c3aed", fontSize: 12, fontWeight: "800" },
+  title: { color: "#211A2C", fontSize: 22, fontWeight: "700", flex: 1 },
+  round: { color: "#B5445A", fontSize: 12, fontWeight: "800" },
   description: { color: "#64748b", lineHeight: 20, marginTop: 8, marginBottom: 16 },
   options: { gap: 10 },
   option: {
     borderWidth: 2,
     borderColor: "#ede9fe",
     backgroundColor: "#faf5ff",
-    borderRadius: 16,
+    borderRadius: 12,
     minHeight: 66,
     padding: 15,
     justifyContent: "center",
   },
-  selectedOption: { borderColor: "#7c3aed", backgroundColor: "#7c3aed" },
+  selectedOption: { borderColor: "#B5445A", backgroundColor: "#B5445A" },
   partnerOption: { borderColor: "#f472b6" },
   optionText: { color: "#4c1d95", textAlign: "center", fontWeight: "800", fontSize: 16 },
   selectedOptionText: { color: "#fff" },
@@ -184,8 +184,8 @@ const styles = StyleSheet.create({
   waitingRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 },
   result: { color: "#4c1d95", textAlign: "center", fontWeight: "900", marginTop: 18 },
   primaryButton: {
-    backgroundColor: "#7c3aed",
-    borderRadius: 15,
+    backgroundColor: "#B5445A",
+    borderRadius: 12,
     paddingVertical: 14,
     marginTop: 16,
   },

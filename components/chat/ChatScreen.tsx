@@ -21,6 +21,7 @@ import {
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -50,9 +51,8 @@ export default function Chat() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-  const [reactionTargetMsgId, setReactionTargetMsgId] = useState<string | null>(
-    null,
-  );
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
 
   // 👑 EXTRA CREDIT: Automatically marks unread incoming messages as read
   useFocusEffect(useCallback(() => {
@@ -106,6 +106,14 @@ export default function Chat() {
     setReplyingTo(null);
 
     try {
+      if (editingMessage) {
+        await updateDoc(doc(db, "pairs", safePairId, "messages", editingMessage.id), {
+          text: currentText,
+          editedAt: serverTimestamp(),
+        });
+        setEditingMessage(null);
+        return;
+      }
       // 1. Write the message to Firestore
       await addDoc(collection(db, "pairs", safePairId, "messages"), {
         text: currentText,
@@ -132,17 +140,17 @@ export default function Chat() {
     } finally {
       setSending(false);
     }
-  }, [text, sending, replyingTo, safePairId, safeUserId, myName]);
+  }, [text, sending, replyingTo, safePairId, safeUserId, myName, editingMessage]);
 
   const handleAddReaction = async (emoji: string) => {
-    if (!reactionTargetMsgId) return;
+    if (!selectedMessage || selectedMessage.deletedAt) return;
     try {
       const msgRef = doc(
         db,
         "pairs",
         safePairId,
         "messages",
-        reactionTargetMsgId,
+        selectedMessage.id,
       );
       await updateDoc(msgRef, {
         [`reactions.${safeUserId}`]: emoji,
@@ -151,8 +159,26 @@ export default function Chat() {
     } catch (e) {
       console.error("Failed adding reaction: ", e);
     } finally {
-      setReactionTargetMsgId(null);
+      setSelectedMessage(null);
     }
+  };
+
+  const beginEdit = () => {
+    if (!selectedMessage || selectedMessage.senderId !== safeUserId || selectedMessage.deletedAt) return;
+    setEditingMessage(selectedMessage);
+    setReplyingTo(null);
+    setText(selectedMessage.text);
+    setSelectedMessage(null);
+  };
+
+  const confirmDelete = () => {
+    if (!selectedMessage || selectedMessage.senderId !== safeUserId || selectedMessage.deletedAt) return;
+    const message = selectedMessage;
+    setSelectedMessage(null);
+    Alert.alert("Delete message?", "It will show as deleted for both of you.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => void updateDoc(doc(db, "pairs", safePairId, "messages", message.id), { text: "", deletedAt: serverTimestamp() }) },
+    ]);
   };
 
   const invertedMessagesWithDates: ChatItem[] = useMemo(() => {
@@ -194,7 +220,7 @@ export default function Chat() {
           <View style={{ alignItems: "center", marginVertical: 16 }}>
             <View
               style={{
-                backgroundColor: "#e2e8f0",
+                backgroundColor: "rgba(255,255,255,0.76)",
                 paddingHorizontal: 14,
                 paddingVertical: 4,
                 borderRadius: 12,
@@ -214,10 +240,10 @@ export default function Chat() {
         <MessageItem
           message={item}
           isMe={item.senderId === safeUserId}
-          onSwipeReply={() => setReplyingTo(item)}
-          partnerName={partnerName || "Partner"} // 👑 Handled smoothly from App Context
-          onLongPress={() => setReactionTargetMsgId(item.id)}
-          onReact={() => setReactionTargetMsgId(item.id)}
+          onSwipeReply={() => { if (!item.deletedAt) { setEditingMessage(null); setReplyingTo(item); } }}
+          partnerName={partnerName || ""}
+          onLongPress={() => { if (!item.deletedAt) setSelectedMessage(item); }}
+          onReact={() => { if (!item.deletedAt) setSelectedMessage(item); }}
           formatTime={() => formatTime(item)}
           getSeenText={() => getSeenText(item)}
           isPickerVisible={false}
@@ -259,6 +285,7 @@ export default function Chat() {
           ref={listRef}
           inverted
           data={invertedMessagesWithDates}
+          extraData={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
@@ -274,20 +301,25 @@ export default function Chat() {
           setText={setText}
           sending={sending}
           replyingTo={replyingTo}
+          editingMessage={editingMessage}
           onCancelReply={() => setReplyingTo(null)}
+          onCancelEdit={() => { setEditingMessage(null); setText(""); }}
           onSend={sendMessage}
           onPickImage={() => {}}
         />
 
       <Modal
-        visible={reactionTargetMsgId !== null}
+        visible={selectedMessage !== null}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setReactionTargetMsgId(null)}
+        onRequestClose={() => setSelectedMessage(null)}
       >
         <EmojiPicker
           onSelect={handleAddReaction}
-          onClose={() => setReactionTargetMsgId(null)}
+          onClose={() => setSelectedMessage(null)}
+          canManage={selectedMessage?.senderId === safeUserId && !selectedMessage?.deletedAt}
+          onEdit={beginEdit}
+          onDelete={confirmDelete}
         />
       </Modal>
       </KeyboardAvoidingView>
@@ -297,12 +329,12 @@ export default function Chat() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.whatsappDark },
-  header: { minHeight: 64, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", backgroundColor: palette.whatsappDark, paddingBottom: 8 },
+  header: { minHeight: 66, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", backgroundColor: palette.whatsappDark, paddingBottom: 8 },
   headerButton: { width: 38, height: 44, alignItems: "center", justifyContent: "center" },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#D7EFEA", alignItems: "center", justifyContent: "center", marginRight: 11 },
-  avatarText: { color: palette.whatsappDark, fontSize: 18, fontWeight: "900" },
+  avatarText: { color: palette.whatsappDark, fontSize: 18, fontWeight: "800" },
   headerCopy: { flex: 1 },
-  headerName: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  headerName: { color: "#fff", fontSize: 17, fontWeight: "700" },
   privateRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   headerStatus: { color: "#C4E1DC", fontSize: 11 },
   chatArea: { flex: 1, backgroundColor: "#EFEAE2" },

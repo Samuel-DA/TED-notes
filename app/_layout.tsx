@@ -37,7 +37,7 @@ function NotificationNavigator() {
       if (!active || !Notifications) return;
       const open = (response: NotificationResponse | null) => {
         const route = response?.notification.request.content.data?.route;
-        if (route === "chat") router.push("/(tabs)/chat");
+        if (route === "chat") router.push("/chat");
         if (route === "plans") router.push("/(tabs)/TED_todos");
         if (route === "care") router.push("/(tabs)/Care");
         if (route === "care_support") router.push("/(tabs)/Care/support");
@@ -100,52 +100,38 @@ function RootNavigator() {
   }
   const shouldShowLock = isLocked && uid && pairId && partnerName && !isAuthRoute && Platform.OS !== "web";
 
-  let initialRoute: string;
-  if (!uid) {
-    initialRoute = "(auth)/Login";
-  } else if (!pairId) {
-    initialRoute = "(auth)/PairScreen";
-  } else if (!partnerName) {
-    initialRoute = "(auth)/WaitingForPartner";
-  } else {
-    initialRoute = "(tabs)";
-  }
-
   return (
     <>
-      {shouldShowLock ? (
-        <LinearGradient colors={["#16121F", "#3B223F", "#71364F"]} style={styles.lockContainer}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(auth)/Login" />
+        <Stack.Screen name="(auth)/Register" />
+        <Stack.Screen name="(auth)/Biometric" />
+        <Stack.Screen name="(auth)/PairScreen" />
+        <Stack.Screen name="(auth)/WaitingForPartner" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="chat" />
+      </Stack>
+
+      {pairId && partnerName && !pathname.endsWith("/chat") && !shouldShowLock && <FloatingChatButton />}
+      {shouldShowLock && (
+        <LinearGradient colors={["#16121F", "#3B223F", "#71364F"]} style={styles.lockOverlay}>
           <SafeAreaView style={styles.lockSafe}>
-          <View style={styles.lockBox}>
-            <View style={styles.lockIconBox}>
-              <Heart size={34} color="#fff" fill="#fff" />
-              <View style={styles.miniLock}><Lock size={12} color="#5B2E75" /></View>
+            <View style={styles.lockBox}>
+              <View style={styles.lockIconBox}>
+                <Heart size={34} color="#fff" fill="#fff" />
+                <View style={styles.miniLock}><Lock size={12} color="#5B2E75" /></View>
+              </View>
+              <Text style={styles.lockTitle}>TED Space Locked</Text>
+              <Text style={styles.lockSubtitle}>Your conversations and shared moments are private. Unlock to come back in.</Text>
+              <TouchableOpacity onPress={authenticateBiometrics} style={styles.lockButton}>
+                <Fingerprint color="#fff" size={20} />
+                <Text style={styles.lockButtonText}>Unlock securely</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.lockTitle}>TED Space Locked</Text>
-            <Text style={styles.lockSubtitle}>Your conversations and shared moments are private. Unlock to come back in.</Text>
-            <TouchableOpacity onPress={authenticateBiometrics} style={styles.lockButton}>
-              <Fingerprint color="#fff" size={20} />
-              <Text style={styles.lockButtonText}>Unlock securely</Text>
-            </TouchableOpacity>
-          </View>
           </SafeAreaView>
         </LinearGradient>
-      ) : (
-        <>
-          <Stack
-            initialRouteName={initialRoute}
-            screenOptions={{ headerShown: false }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(auth)/Login" />
-            <Stack.Screen name="(auth)/Register" />
-            <Stack.Screen name="(auth)/Biometric" />
-            <Stack.Screen name="(auth)/PairScreen" />
-            <Stack.Screen name="(auth)/WaitingForPartner" />
-          </Stack>
-
-          {pairId && partnerName && pathname !== "/chat" && pathname !== "/TED_todos" && <FloatingChatButton />}
-        </>
       )}
     </>
   );
@@ -176,9 +162,7 @@ const styles = StyleSheet.create({
     color: "#4f46e5",
     fontWeight: "600",
   },
-  lockContainer: {
-    flex: 1,
-  },
+  lockOverlay: { ...StyleSheet.absoluteFill, zIndex: 20, elevation: 20 },
   lockSafe: {
     flex: 1,
     justifyContent: "center",
@@ -214,7 +198,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   lockButton: {
-    backgroundColor: "#E85D75",
+    backgroundColor: "#B5445A",
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 16,

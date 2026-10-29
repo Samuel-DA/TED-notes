@@ -1,16 +1,16 @@
 import { palette } from "@/constants/design";
 import { db } from "@/firebase";
-import { Brush, PenTool, Undo2 } from "lucide-react-native";
+import { Brush, PenTool, Undo2, Trash2 } from "lucide-react-native";
 import { collection, doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { gameStyles } from "./theme";
 import { notifyGamePartner } from "./notify";
 
 type Stroke = { id: string; uid: string; color: string; width: number; path: string };
 type Props = { pairId: string | null; uid: string | null; myName: string; partnerName: string; onDrawingChange?: (drawing: boolean) => void };
-const COLORS = ["#211A2C", "#E85D75", "#7C4DFF", "#0B7A66", "#F59E0B", "#3B82F6"];
+const COLORS = ["#211A2C", "#B5445A", "#76527D", "#0B7A66", "#F59E0B", "#3B82F6"];
 const MAX_STROKES = 220;
 
 export default function DrawingActivity({ pairId, uid, myName, partnerName, onDrawingChange }: Props) {
@@ -81,6 +81,20 @@ export default function DrawingActivity({ pairId, uid, myName, partnerName, onDr
     });
   };
 
+  const clearCanvas = () => {
+    if (!drawingRef || !strokes.length) return;
+    Alert.alert("Clear shared canvas?", "This removes every stroke for both of you.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Clear canvas", style: "destructive", onPress: async () => {
+        await runTransaction(db, async (transaction) => {
+          const snapshot = await transaction.get(drawingRef);
+          transaction.set(drawingRef, { strokes: [], updatedAt: serverTimestamp() }, { merge: true });
+          return snapshot.exists();
+        });
+      } },
+    ]);
+  };
+
   return (
     <View style={gameStyles.card}>
       <View style={gameStyles.titleRow}>
@@ -94,6 +108,7 @@ export default function DrawingActivity({ pairId, uid, myName, partnerName, onDr
         {COLORS.map((item) => <Pressable accessibilityLabel={`Use ${item}`} key={item} onPress={() => setColor(item)} style={[styles.swatch, { backgroundColor: item }, color === item && styles.swatchActive]} />)}
         <Pressable onPress={() => setWidth((current) => current === 5 ? 10 : 5)} style={styles.toolButton}><PenTool color={palette.plum} size={16} /><Text style={styles.toolText}>{width === 5 ? "Fine" : "Bold"}</Text></Pressable>
         <Pressable accessibilityLabel="Undo last stroke" disabled={!strokes.length} onPress={undo} style={[styles.undoButton, !strokes.length && styles.undoDisabled]}><Undo2 color={palette.plum} size={16} /><Text style={styles.undoText}>Undo</Text></Pressable>
+        <Pressable accessibilityLabel="Clear shared canvas" disabled={!strokes.length} onPress={clearCanvas} style={[styles.undoButton, !strokes.length && styles.undoDisabled]}><Trash2 color={palette.rose} size={15} /><Text style={styles.undoText}>Clear</Text></Pressable>
       </View>
       <View style={styles.canvas} {...panResponder.panHandlers}>
         <View pointerEvents="none" style={styles.canvasLayer}>
@@ -120,7 +135,7 @@ const styles = StyleSheet.create({
   undoButton: { height: 34, paddingHorizontal: 9, borderRadius: 12, backgroundColor: "#F5EFF8", flexDirection: "row", gap: 4, alignItems: "center", justifyContent: "center" },
   undoText: { color: palette.plum, fontSize: 10.5, fontWeight: "900" },
   undoDisabled: { opacity: 0.38 },
-  canvas: { height: 360, borderRadius: 22, overflow: "hidden", backgroundColor: "#FFFCF8", borderWidth: 1, borderColor: "#EDE5DF" },
+  canvas: { height: 360, borderRadius: 14, overflow: "hidden", backgroundColor: "#FFFCF8", borderWidth: 1, borderColor: "#EDE5DF" },
   canvasLayer: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   blank: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: 45 },
   blankTitle: { color: palette.text, fontSize: 17, fontWeight: "800", marginTop: 8 },

@@ -75,7 +75,7 @@ export default function Index() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#16121F" }}>
-        <ActivityIndicator size="large" color="#E85D75" />
+        <ActivityIndicator size="large" color="#B5445A" />
         <Text style={{ color: "#D8C9DF", marginTop: 12, fontWeight: "700" }}>Opening your space…</Text>
       </View>
     );

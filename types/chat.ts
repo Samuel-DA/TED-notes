@@ -16,8 +16,10 @@ export type Message = {
   createdAt?: any;
   localCreatedAt?: number;
   readBy?: string[];
-  reactions?: Record<string, string[]>;
+  reactions?: Record<string, string>;
   replyTo?: { id: string; text?: string };
   imageUrl?: string;
+  editedAt?: any;
+  deletedAt?: any;
 
 };

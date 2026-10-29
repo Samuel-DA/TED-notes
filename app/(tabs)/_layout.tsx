@@ -1,12 +1,12 @@
 import { Redirect, Tabs } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { onAuthStateChanged } from "firebase/auth";
-import { Gamepad2, Heart, HeartHandshake, ListChecks } from "lucide-react-native";
+import { Gamepad2, HeartHandshake, House, ListChecks } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { palette } from "@/constants/design";
-
 import { auth } from "../../firebase";
+import { gradients } from "../../constants/design";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -28,34 +28,36 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: palette.rose,
-        tabBarInactiveTintColor: "#9B91A2",
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "#FFFFFF",
         tabBarLabelStyle: { fontSize: 11, fontWeight: "800", marginTop: 2 },
-        tabBarItemStyle: { paddingTop: 8 },
+        tabBarItemStyle: { paddingTop: 6 },
+        tabBarBackground: () => (
+          <LinearGradient
+            colors={gradients.app}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarStyle: {
           position: "absolute",
-          left: 14,
-          right: 14,
-          bottom: Math.max(insets.bottom, 8),
-          height: Platform.OS === "ios" ? 72 : 68,
-          borderRadius: 24,
-          backgroundColor: "#17121F",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 58 + insets.bottom,
+          backgroundColor: "transparent",
           borderTopWidth: 0,
-          paddingBottom: Platform.OS === "ios" ? 10 : 8,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.24,
-          shadowRadius: 20,
-          elevation: 14,
+          paddingBottom: Math.max(insets.bottom, 6),
+          shadowOpacity: 0,
+          elevation: 0,
         },
       }}
     >
       <Tabs.Screen
         name="Home"
         options={{
-          title: "TED Space",
-          tabBarLabel: "Together",
-          tabBarIcon: ({ color, focused }) => <Heart color={color} fill={focused ? color : "transparent"} size={22} />,
+          title: "Home",
+          tabBarLabel: "Home",
+          tabBarIcon: ({ color, focused }) => <House color={color} strokeWidth={focused ? 2.8 : 2.1} size={24} />,
         }}
       />
       <Tabs.Screen
@@ -76,14 +78,6 @@ export default function TabsLayout() {
           title: "Games",
           tabBarLabel: "Play",
           tabBarIcon: ({ color }) => <Gamepad2 color={color} size={22} />,
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          href: null,
-          title: "The Walls have Ears!",
-          tabBarStyle: { display: "none" },
         }}
       />
     </Tabs>

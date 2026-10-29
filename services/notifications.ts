@@ -170,6 +170,7 @@ export async function notifyPartner({
       body,
       route,
       action,
+      readBy: [currentUid],
       createdAt: serverTimestamp(),
     });
   } catch (error) {

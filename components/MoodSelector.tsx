@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, type TextInputInstance } from "react-native";
 
 type Props = {
   yourMood: string;
@@ -16,7 +16,7 @@ export default function MoodSelector({
   yourLabel = "Your Mood",
   partnerLabel = "Partner's Mood",
 }: Omit<Props, "MOODS">) {
-  const hiddenInputRef = useRef<TextInput>(null);
+  const hiddenInputRef = useRef<TextInputInstance>(null);
 
   const handleOpenKeyboard = () => {
     hiddenInputRef.current?.focus();
@@ -81,10 +81,9 @@ const styles = StyleSheet.create({
   cardTitle: { 
     fontSize: 14, 
     fontWeight: "700", 
-    color: "#64748b", 
+    color: "#766D80",
     textAlign: "center",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: -0.1,
   },
   centerContainer: {
     alignItems: "center",
@@ -92,15 +91,15 @@ const styles = StyleSheet.create({
     marginVertical: 14,
   },
   bigMoodBubble: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "#fcf7ff",
+    width: 84,
+    height: 84,
+    borderRadius: 24,
+    backgroundColor: "#FFF3F5",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "#f3e8ff",
-    shadowColor: "#a855f7",
+    borderWidth: 1,
+    borderColor: "#F2DDE2",
+    shadowColor: "#B5445A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
@@ -123,7 +122,7 @@ const styles = StyleSheet.create({
   },
   cardHint: { 
     fontSize: 15, 
-    color: "#4f46e5",
+    color: "#B5445A",
     fontWeight: "600",
   },
   myMoodTrigger: {
@@ -132,7 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#e5e7eb",
     gap: 6,

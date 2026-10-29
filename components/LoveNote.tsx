@@ -17,6 +17,7 @@ type Props = {
   setNote?: (n: string) => void;
   saveNote?: () => void;
   readOnly?: boolean;
+  compact?: boolean;
 };
 
 export default function LoveNote({
@@ -26,6 +27,7 @@ export default function LoveNote({
   setNote,
   saveNote,
   readOnly = false,
+  compact = false,
 }: Props) {
   const [editing, setEditing] = useState(false);
 
@@ -82,19 +84,19 @@ export default function LoveNote({
   };
 
   return (
-    <View style={styles.card}>
-      <View style={styles.headerContainerRow}>
-        <Text style={styles.title}>{title}</Text>
+    <View style={[styles.card, compact && styles.cardCompact]}>
+      <View style={[styles.headerContainerRow, compact && styles.headerCompact]}>
+        <Text numberOfLines={compact ? 2 : undefined} style={[styles.title, compact && styles.titleCompact]}>{title}</Text>
         
         {/* Render relative display line */}
         {timestamp && note.trim() !== "" && (
-          <Text style={styles.timestampText}>{formatNoteTime(timestamp)}</Text>
+          <Text numberOfLines={1} style={[styles.timestampText, compact && styles.timestampCompact]}>{formatNoteTime(timestamp)}</Text>
         )}
       </View>
 
       {!editing && (
         <>
-          <Text style={styles.text}>
+          <Text numberOfLines={compact ? 5 : undefined} style={[styles.text, compact && styles.textCompact]}>
             {note || (readOnly ? "No note yet 💭" : "Write something…")}
           </Text>
 
@@ -148,30 +150,37 @@ export default function LoveNote({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.13)",
+    borderRadius: 14,
     padding: 20,
     marginBottom: 14,
   },
+  cardCompact: { padding: 14, marginBottom: 0, minHeight: 168 },
   headerContainerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  headerCompact: { alignItems: "flex-start", flexDirection: "column" },
   title: { 
     fontSize: 18, 
     fontWeight: "700", 
-    color: "#4f46e5",
+    color: "#fff",
     flex: 1,
   },
+  titleCompact: { fontSize: 15.5 },
   timestampText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#9ca3af",
+    color: "rgba(255,255,255,0.52)",
     marginLeft: 8,
   },
-  text: { marginTop: 8, color: "#6b7280", fontSize: 15, lineHeight: 22 },
-  editBtn: { marginTop: 10, color: "#4f46e5", fontWeight: "600" },
+  timestampCompact: { marginLeft: 0, marginTop: 3, fontSize: 10.5 },
+  text: { marginTop: 8, color: "rgba(255,255,255,0.76)", fontSize: 15, lineHeight: 22 },
+  textCompact: { fontSize: 13.5, lineHeight: 20 },
+  editBtn: { marginTop: 10, color: "#F0B9C4", fontWeight: "700" },
   input: {
     marginTop: 12,
     fontSize: 16,
@@ -185,7 +194,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 12,
     alignSelf: "flex-end",
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#B5445A",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,

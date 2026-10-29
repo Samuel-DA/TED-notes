@@ -12,7 +12,7 @@ import { notifyGamePartner } from "./notify";
 const GAME_ID = "knowme";
 const SCOREBOARD_ID = "global";
 
-export default function KnowMeGame({ pairId, myName }: { pairId: string | null; myName: string }) {
+export default function KnowMeGame({ pairId, myName, partnerName }: { pairId: string | null; myName: string; partnerName: string }) {
   const uid = getAuth().currentUser?.uid;
 
   const [game, setGame] = useState<any>(null);
@@ -40,7 +40,7 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
   if (!game) {
     return (
       <View style={gameStyles.card}>
-        <ActivityIndicator size="small" color="#6366f1" />
+        <ActivityIndicator size="small" color="#B5445A" />
       </View>
     );
   }
@@ -135,7 +135,7 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
       )}
 
       <View style={gameStyles.titleRow}>
-        <MaterialCommunityIcons name="brain" size={24} color="#6366f1" />
+        <MaterialCommunityIcons name="brain" size={24} color="#B5445A" />
         <Text style={gameStyles.title}>Know Me</Text>
       </View>
 
@@ -149,7 +149,7 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
       {/* IDLE STATE */}
       {game.status === "idle" && (
         <>
-          <Text style={gameStyles.description}>Test your partner&apos;s knowledge about you by writing a question and its correct answer.</Text>
+          <Text style={gameStyles.description}>Test {partnerName}&apos;s knowledge about you by writing a question and its correct answer.</Text>
           
           <Text style={gameStyles.label}>Your Question</Text>
           <TextInput
@@ -181,13 +181,13 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
         <>
           {isCreator ? (
             <View style={gameStyles.waitingContainer}>
-              <ActivityIndicator size="small" color="#6366f1" style={{ marginBottom: 12 }} />
+              <ActivityIndicator size="small" color="#B5445A" style={{ marginBottom: 12 }} />
               <Text style={gameStyles.waitingText}>Question locked: <Text style={{ fontWeight: "700" }}>{`“${game.prompt}”`}</Text></Text>
               
               {/* LIVE WRONG GUESS TRACKER */}
               {game.wrongGuesses && game.wrongGuesses.length > 0 ? (
                 <View style={styles.wrongGuessesBox}>
-                  <Text style={styles.wrongGuessesTitle}>Partner&apos;s incorrect attempts:</Text>
+                  <Text style={styles.wrongGuessesTitle}>{partnerName}&apos;s incorrect attempts:</Text>
                   <View style={styles.badgeContainer}>
                     {game.wrongGuesses.map((g: string, idx: number) => (
                       <View key={idx} style={styles.guessBadge}>
@@ -198,7 +198,7 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
                 </View>
               ) : (
                 <Text style={[gameStyles.waitingText, { fontSize: 13, marginTop: 8 }]}>
-                  Waiting for your partner to guess the answer... 💭
+                  Waiting for {partnerName} to guess the answer... 💭
                 </Text>
               )}
 
@@ -209,7 +209,7 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
             </View>
           ) : (
             <>
-              <Text style={gameStyles.description}>Your partner wants to see if you know the answer to this question:</Text>
+              <Text style={gameStyles.description}>{partnerName} wants to see if you know the answer to this question:</Text>
               <View style={gameStyles.promptContainer}>
                 <Text style={gameStyles.promptText}>“{game.prompt}”</Text>
               </View>
@@ -241,7 +241,7 @@ export default function KnowMeGame({ pairId, myName }: { pairId: string | null; 
         <View style={gameStyles.winContainer}>
           <Ionicons name="trophy" size={40} color="#eab308" />
           <Text style={gameStyles.winText}>
-            {game.winner === uid ? "🎉 You got it right!" : "🙌 Your partner guessed correctly!"}
+            {game.winner === uid ? "🎉 You got it right!" : `🙌 ${partnerName} guessed correctly!`}
           </Text>
           <Text style={gameStyles.revealText}>The correct answer was: <Text style={{ fontWeight: "700" }}>{game.answer}</Text></Text>
           

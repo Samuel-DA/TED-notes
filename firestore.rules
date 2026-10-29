@@ -40,7 +40,7 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "name", "expoPushToken", "pairId"
+          "name", "expoPushToken", "pairId", "notificationPreview", "settingsUpdatedAt"
         ])
         && (
           request.resource.data.pairId == resource.data.pairId ||
@@ -48,7 +48,9 @@ service cloud.firestore {
             request.resource.data.pairId is string
             && request.auth.uid in pairMembersAfter(request.resource.data.pairId)
           )
-        );
+        )
+        && request.resource.data.get("notificationPreview", true) is bool
+        && request.resource.data.get("settingsUpdatedAt", request.time) is timestamp;
 
       allow delete: if false;
 
@@ -140,6 +142,22 @@ service cloud.firestore {
             && request.resource.data.reactions
               .diff(resource.data.get("reactions", {}))
               .affectedKeys().hasOnly([request.auth.uid])
+          ) ||
+          (
+            request.auth.uid == resource.data.senderId
+            && resource.data.get("deletedAt", null) == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "editedAt"])
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 4000
+            && request.resource.data.editedAt is timestamp
+          ) ||
+          (
+            request.auth.uid == resource.data.senderId
+            && resource.data.get("deletedAt", null) == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "deletedAt"])
+            && request.resource.data.text == ""
+            && request.resource.data.deletedAt is timestamp
           )
         );
 
@@ -204,7 +222,7 @@ service cloud.firestore {
           && trackerId == "shared"
           && request.resource.data.keys().hasOnly([
             "lastPeriodStart", "cycleLength", "periodLength",
-            "updatedBy", "updatedByName", "updatedAt"
+            "periodDays", "dailyLogs", "updatedBy", "updatedByName", "updatedAt"
           ])
           && request.resource.data.lastPeriodStart is string
           && request.resource.data.lastPeriodStart.size() == 10
@@ -214,6 +232,10 @@ service cloud.firestore {
           && request.resource.data.periodLength is int
           && request.resource.data.periodLength >= 2
           && request.resource.data.periodLength <= 10
+          && request.resource.data.get("periodDays", []) is list
+          && request.resource.data.get("periodDays", []).size() <= 365
+          && request.resource.data.get("dailyLogs", {}) is map
+          && request.resource.data.get("dailyLogs", {}).size() <= 180
           && request.resource.data.updatedBy == request.auth.uid
           && request.resource.data.updatedByName is string
           && request.resource.data.updatedAt is timestamp;
@@ -289,7 +311,7 @@ service cloud.firestore {
         allow read: if isPairMember(pairId);
         allow create: if isPairMember(pairId)
           && request.resource.data.keys().hasOnly([
-            "actorUid", "title", "body", "route", "action", "createdAt"
+            "actorUid", "title", "body", "route", "action", "readBy", "createdAt"
           ])
           && request.resource.data.actorUid == request.auth.uid
           && request.resource.data.title is string
@@ -304,8 +326,37 @@ service cloud.firestore {
           && request.resource.data.action is string
           && request.resource.data.action.size() > 0
           && request.resource.data.action.size() <= 64
+          && (
+            !request.resource.data.keys().hasAny(["readBy"])
+            || request.resource.data.readBy == [request.auth.uid]
+          )
           && request.resource.data.createdAt is timestamp;
-        allow update, delete: if false;
+        allow update: if isPairMember(pairId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["readBy", "clearedBy"])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(["readBy"])
+            || (
+              request.resource.data.readBy is list
+              && resource.data.get("readBy", []).toSet()
+                .difference(request.resource.data.readBy.toSet()).size() == 0
+              && request.resource.data.readBy.toSet()
+                .difference(resource.data.get("readBy", []).toSet())
+                .hasOnly([request.auth.uid])
+            )
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(["clearedBy"])
+            || (
+              request.resource.data.clearedBy is list
+              && resource.data.get("clearedBy", []).toSet()
+                .difference(request.resource.data.clearedBy.toSet()).size() == 0
+              && request.resource.data.clearedBy.toSet()
+                .difference(resource.data.get("clearedBy", []).toSet())
+                .hasOnly([request.auth.uid])
+            )
+          );
+        allow delete: if false;
       }
 
       match /games/{gameId} {

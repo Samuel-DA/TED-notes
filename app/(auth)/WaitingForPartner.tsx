@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#E85D75",
+    backgroundColor: "#B5445A",
     opacity: 0.22,
     marginBottom: 24,
   },
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 20,
+    borderRadius: 14,
     marginBottom: 20,
   },
   code: {
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   button: {
-    backgroundColor: "#E85D75",
+    backgroundColor: "#B5445A",
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 16,

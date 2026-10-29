@@ -5,13 +5,13 @@ import { StyleSheet } from "react-native";
 export const gameStyles = StyleSheet.create({
   card: {
     backgroundColor: palette.paper,
-    borderRadius: 26,
-    padding: 20,
+    borderRadius: 16,
+    padding: 18,
     marginHorizontal: 16,
     marginTop: 16,
     ...cardShadow,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.5)",
+    borderColor: "rgba(255, 255, 255, 0.42)",
   },
   titleRow: {
     flexDirection: "row",
@@ -20,7 +20,7 @@ export const gameStyles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "700",
     color: palette.text,
     marginLeft: 0,
   },
@@ -48,12 +48,12 @@ export const gameStyles = StyleSheet.create({
     marginBottom: 12,
   },
   btn: {
-    backgroundColor: palette.violet,
-    borderRadius: 14,
+    backgroundColor: palette.rose,
+    borderRadius: 12,
     padding: 14,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#6366f1",
+    shadowColor: palette.rose,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -73,7 +73,7 @@ export const gameStyles = StyleSheet.create({
   promptText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#4338ca",
+    color: palette.rose,
     textAlign: "center",
   },
   waitingContainer: {
@@ -106,8 +106,8 @@ export const gameStyles = StyleSheet.create({
   resetBtn: {
     backgroundColor: "transparent",
     borderWidth: 1.5,
-    borderColor: palette.violet,
-    borderRadius: 14,
+    borderColor: palette.rose,
+    borderRadius: 12,
     padding: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -116,7 +116,7 @@ export const gameStyles = StyleSheet.create({
     marginTop: 16,
   },
   resetText: {
-    color: palette.violet,
+    color: palette.rose,
     fontWeight: "800",
     fontSize: 15,
   },

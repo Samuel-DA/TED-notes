@@ -10,7 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { CheckCircle2, ListTodo } from "lucide-react-native";
-import { palette } from "@/constants/design";
+import { gradients, palette } from "@/constants/design";
 import AppHeader from "@/components/AppHeader";
 
 import TodoConfetti from "../../components/TodoConfetti";
@@ -77,7 +77,7 @@ export default function TEDTodos() {
   );
 
   return (
-    <LinearGradient colors={[palette.ink, "#34203D", "#6A315C"]} style={styles.safe}>
+    <LinearGradient colors={gradients.app} style={styles.safe}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -85,8 +85,8 @@ export default function TEDTodos() {
         enabled
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-          <AppHeader eyebrow="SHARED PLANS" title="Life, planned together" subtitle="Tiny promises, date-night ideas and everything you don’t want to forget." icon={<ListTodo color="#fff" size={23} />} />
+        <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
+          <AppHeader eyebrow="SHARED PLANS" title="Life, planned together" icon={<ListTodo color="#fff" size={23} />} />
           <View style={styles.statsRow}>
             <View style={styles.statPill}><Text style={styles.statNumber}>{activeCount}</Text><Text style={styles.statLabel}>open</Text></View>
             <View style={styles.statPill}><CheckCircle2 color={palette.success} size={15} /><Text style={styles.statNumber}>{completedCount}</Text><Text style={styles.statLabel}>done</Text></View>
@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.ink,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
     backgroundColor: "transparent",
   },
   statsRow: { flexDirection: "row", gap: 8, marginTop: 15 },

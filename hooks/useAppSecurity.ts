@@ -3,10 +3,15 @@ import { AppState, AppStateStatus } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 
 export function useAppSecurity() {
+  const BACKGROUND_LOCK_DELAY_MS = 4000;
   const [isLocked, setIsLocked] = useState<boolean>(true); // Start locked on fresh launch
-  const appState = useRef<AppStateStatus>(AppState.currentState);
   const isAuthenticating = useRef<boolean>(false);
-  const lastBackgroundTime = useRef<number>(0);
+  const isLockedRef = useRef<boolean>(true);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    isLockedRef.current = isLocked;
+  }, [isLocked]);
 
   const authenticateBiometrics = useCallback(async (): Promise<boolean> => {
     if (isAuthenticating.current) return false;
@@ -49,43 +54,30 @@ export function useAppSecurity() {
     authenticateBiometrics();
 
     const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {
-      const now = Date.now();
-
-      // 1. Moving away from active state (minimizing or backgrounding)
-      if (
-        appState.current.match(/active/) && 
-        (nextAppState === "background" || nextAppState === "inactive")
-      ) {
-        // Track exactly when the app lost focus
-        if (!isAuthenticating.current) {
-          lastBackgroundTime.current = now;
+      // Native controls and permission sheets can briefly report "inactive".
+      // Only a genuine background transition should schedule a privacy lock.
+      if (nextAppState === "background" && !isAuthenticating.current) {
+        if (lockTimer.current) clearTimeout(lockTimer.current);
+        lockTimer.current = setTimeout(() => {
+          isLockedRef.current = true;
           setIsLocked(true);
-        }
+        }, BACKGROUND_LOCK_DELAY_MS);
       }
 
-      // 2. Returning to the app
-      if (
-        appState.current.match(/inactive|background/) && 
-        nextAppState === "active"
-      ) {
-        // TIME GUARD: If the app was backgrounded for less than 2 seconds,
-        // it was almost certainly just the native Face ID modal flickering the app state.
-        // Do not re-trigger a secondary lock screen or authentication.
-        if (now - lastBackgroundTime.current < 2000 && isLocked === false) {
-          appState.current = nextAppState;
-          return;
+      if (nextAppState === "active") {
+        if (lockTimer.current) {
+          clearTimeout(lockTimer.current);
+          lockTimer.current = null;
         }
-
-        authenticateBiometrics();
+        if (isLockedRef.current && !isAuthenticating.current) void authenticateBiometrics();
       }
-
-      appState.current = nextAppState;
     });
 
     return () => {
+      if (lockTimer.current) clearTimeout(lockTimer.current);
       subscription.remove();
     };
-  }, [authenticateBiometrics, isLocked]);
+  }, [authenticateBiometrics]);
 
   return { isLocked, authenticateBiometrics };
 }

@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { glass, radii } from "@/constants/design";
 import { Animated, Pressable, StyleSheet, ViewStyle, View } from "react-native";
 import * as Haptics from "expo-haptics";
 
@@ -62,16 +63,14 @@ export default function GlassCard({ children, onPress, style }: GlassCardProps) 
 
 const styles = StyleSheet.create({
   glass: {
-    backgroundColor: "rgba(255, 255, 255, 0.11)",
-    borderRadius: 28, // High-end hardware curve matching squircle designs
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.16)",
+    ...glass,
+    borderRadius: radii.medium,
+    padding: 17,
     overflow: "hidden",
-    shadowColor: "#c084fc", // Radiant theme accent ambient glow color
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
+    shadowColor: "#0D0710",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
   },
   topHighlight: {
     position: "absolute",

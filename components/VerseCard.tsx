@@ -10,6 +10,7 @@ interface VerseCardProps {
   partnerRead: boolean;
   partnerName: string;
   onToggle: () => void;
+  compact?: boolean;
 }
 
 export default function VerseCard({
@@ -20,34 +21,36 @@ export default function VerseCard({
   partnerRead,
   partnerName,
   onToggle,
+  compact = false,
 }: VerseCardProps) {
   if (!verse) return null;
 
   return (
     <Animated.View
       style={{
-        marginBottom: 16,
-        padding: 16,
-        borderRadius: 20,
+        marginBottom: compact ? 0 : 16,
+        flex: compact ? 1 : undefined,
+        padding: compact ? 13 : 16,
+        borderRadius: 14,
         backgroundColor: "rgba(255, 255, 255, 0.12)",
         transform: [{ scale: scaleAnim }],
         opacity: fadeAnim,
         borderWidth: 1,
-        borderColor: "rgba(255, 255, 255, 0.15)",
+        borderColor: "rgba(255, 255, 255, 0.13)",
       }}
     >
-      <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700", opacity: 0.9, marginBottom: 6 }}>
-        📖 Verse of the Day
+      <Text style={{ color: "#fff", fontSize: compact ? 13 : 15, fontWeight: "800", opacity: 0.9, marginBottom: 6 }}>
+        {compact ? "📖 SCRIPTURE" : "📖 Verse of the Day"}
       </Text>
-      <Text style={{ color: "#fff", fontSize: 16, fontStyle: "italic", lineHeight: 22, marginBottom: 6 }}>
+      <Text numberOfLines={compact ? 6 : undefined} style={{ color: "#fff", fontSize: compact ? 14 : 16, fontStyle: "italic", lineHeight: compact ? 20 : 22, marginBottom: 6 }}>
         “{verse.text}”
       </Text>
-      <Text style={{ color: "#ffe4e6", fontSize: 13, fontWeight: "600", textAlign: "right", marginBottom: 12 }}>
+      <Text numberOfLines={1} style={{ color: "#ffe4e6", fontSize: compact ? 11 : 13, fontWeight: "600", textAlign: "right", marginBottom: compact ? 7 : 12 }}>
         — {verse.reference}
       </Text>
 
       <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.15)", marginVertical: 8 }} />
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+      <View style={{ flexDirection: compact ? "column" : "row", justifyContent: "space-between", alignItems: compact ? "stretch" : "center", marginTop: 4, gap: 7 }}>
         <TouchableOpacity 
           onPress={onToggle}
           activeOpacity={0.7}
@@ -55,20 +58,21 @@ export default function VerseCard({
             flexDirection: "row", 
             alignItems: "center", 
             backgroundColor: iRead ? "rgba(34, 197, 94, 0.4)" : "rgba(255,255,255,0.15)", 
-            paddingHorizontal: 12, 
-            paddingVertical: 6, 
-            borderRadius: 12 
+            paddingHorizontal: compact ? 8 : 12,
+            paddingVertical: 7,
+            borderRadius: 10,
+            justifyContent: "center",
           }}
         >
           <CheckCircle2 size={16} color={iRead ? "#4ade80" : "#fff"} fill={iRead ? "rgba(34, 197, 94, 0.2)" : "transparent"} style={{ marginRight: 6 }} />
-          <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
-            {iRead ? "Read" : "Mark as Read"}
+          <Text style={{ color: "#fff", fontSize: compact ? 13.5 : 13, fontWeight: "700" }}>
+            {iRead ? "Read" : compact ? "I read it" : "Mark as Read"}
           </Text>
         </TouchableOpacity>
         
         {partnerRead && (
-          <Text style={{ color: "#ffe4e6", fontSize: 12, fontWeight: "600", fontStyle: "italic" }}>
-            ✓ {partnerName || "Partner"} read this
+          <Text style={{ color: "#ffe4e6", fontSize: compact ? 12.5 : 12, fontWeight: "600", fontStyle: "italic" }}>
+            ✓ {partnerName} read this
           </Text>
         )}
       </View>

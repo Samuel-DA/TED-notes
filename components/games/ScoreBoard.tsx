@@ -106,7 +106,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
         ? "🤝 It's a tie!"
         : leaders[0].isMe
           ? `🎉 You (${myName || "You"}) are leading`
-          : `🏅 ${partnerName || "Partner"} is leading`;
+          : `🏅 ${partnerName} is leading`;
 
   /* ---------------- Reset ---------------- */
   const resetScores = async () => {
@@ -115,7 +115,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
 
     Alert.alert(
       "Reset My Score",
-      "Are you sure you want to reset your score? Your partner's score will stay unchanged.",
+      `Are you sure you want to reset your score? ${partnerName}'s score will stay unchanged.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -137,7 +137,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
   if (!pairId || !uid || loading || !scoreboard) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color={palette.rose} />
         <Text style={styles.loadingText}>Loading scoreboard…</Text>
       </View>
     );
@@ -155,7 +155,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
             <Text style={styles.player}>
               {p.isMe
                 ? `You (${myName || "You"})`
-                : partnerName || "Partner"}
+                : partnerName}
             </Text>
             <Text style={styles.score}>{p.score}</Text>
           </View>
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 24,
+    borderRadius: 16,
     padding: 18,
     shadowColor: "#000",
     shadowOpacity: 0.08,

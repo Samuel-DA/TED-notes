@@ -9,7 +9,9 @@ type Props = {
   setText: (v: string) => void;
   sending: boolean;
   replyingTo: Message | null;
+  editingMessage?: Message | null;
   onCancelReply: () => void;
+  onCancelEdit?: () => void;
   onSend: () => void;
   onPickImage?: () => void;
 };
@@ -19,7 +21,9 @@ export function ChatInput({
   setText,
   sending,
   replyingTo,
+  editingMessage,
   onCancelReply,
+  onCancelEdit,
   onSend,
 }: Props) {
   const isSendDisabled = !text.trim() || sending;
@@ -50,13 +54,20 @@ export function ChatInput({
           </Pressable>
         </View>
       )}
+      {editingMessage && (
+        <View style={styles.replyPreviewHeader}>
+          <View style={styles.editBarAccent} />
+          <View style={styles.replyContentColumn}><Text style={styles.editTitle}>Editing message</Text><Text style={styles.replyTextSnippet} numberOfLines={1}>{editingMessage.text}</Text></View>
+          <Pressable onPress={onCancelEdit} hitSlop={15} style={styles.closeButton}><X size={18} color="#64748b" /></Pressable>
+        </View>
+      )}
 
       {/* INPUT BASE FIELD ROW */}
       <View style={styles.inputActionRow}>
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder="Type a message..."
+          placeholder={editingMessage ? "Update your message…" : "Type a message..."}
           placeholderTextColor="#94a3b8"
           style={styles.textInput}
           multiline
@@ -107,6 +118,8 @@ const styles = StyleSheet.create({
     left: 0,
     top: 10,
   },
+  editBarAccent: { width: 4, height: "100%", backgroundColor: palette.whatsapp, borderRadius: 2, position: "absolute", left: 0, top: 10 },
+  editTitle: { fontSize: 12, fontWeight: "800", color: palette.whatsapp, marginBottom: 2 },
   replyContentColumn: {
     flex: 1,
     paddingLeft: 8,
@@ -132,7 +145,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     backgroundColor: "#fff",
-    borderRadius: 22,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 8,
     maxHeight: 100,
@@ -142,7 +155,7 @@ const styles = StyleSheet.create({
   sendCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: palette.whatsapp,
     alignItems: "center",
     justifyContent: "center",

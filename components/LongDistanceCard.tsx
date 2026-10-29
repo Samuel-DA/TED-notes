@@ -1,4 +1,4 @@
-import { palette, radii } from "@/constants/design";
+import { palette } from "@/constants/design";
 import { db } from "@/firebase";
 import { CalendarHeart, Check, Plane, X } from "lucide-react-native";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
@@ -107,7 +107,7 @@ export default function LongDistanceCard({ pairId, uid, myName, partnerName }: P
         </View>
       ) : (
         <Pressable onPress={() => setEditing(true)} style={styles.action}>
-          <CalendarHeart color={palette.plum} size={17} />
+          <CalendarHeart color="#F0B9C4" size={17} />
           <Text style={styles.actionText}>{countdown ? "Change reunion date" : "Set reunion date"}</Text>
         </Pressable>
       )}
@@ -116,18 +116,18 @@ export default function LongDistanceCard({ pairId, uid, myName, partnerName }: P
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: palette.paper, borderRadius: radii.large, padding: 20, marginBottom: 16 },
+  card: { backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 14, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.13)" },
   topRow: { flexDirection: "row", alignItems: "center" },
-  iconBox: { width: 44, height: 44, borderRadius: 15, backgroundColor: "#FFF0F3", alignItems: "center", justifyContent: "center" },
+  iconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#FFF0F3", alignItems: "center", justifyContent: "center" },
   heading: { flex: 1, marginLeft: 12 },
-  eyebrow: { color: palette.rose, fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
-  title: { color: palette.text, fontSize: 18, fontWeight: "800", marginTop: 2 },
-  days: { color: palette.plum, fontSize: 34, fontWeight: "900", letterSpacing: -1 },
-  countdownText: { color: palette.text, fontSize: 16, fontWeight: "700", marginTop: 18 },
-  date: { color: palette.muted, fontSize: 13, marginTop: 4 },
-  emptyText: { color: palette.muted, fontSize: 14, lineHeight: 21, marginTop: 16 },
-  action: { marginTop: 18, minHeight: 46, borderRadius: 15, backgroundColor: "#F5EFF8", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  actionText: { color: palette.plum, fontSize: 14, fontWeight: "800" },
+  eyebrow: { color: "#F0B9C4", fontSize: 10, fontWeight: "800", letterSpacing: 1.2 },
+  title: { color: "#fff", fontSize: 18, fontWeight: "700", marginTop: 2 },
+  days: { color: "#F6CAD3", fontSize: 34, fontWeight: "800", letterSpacing: -1 },
+  countdownText: { color: "#fff", fontSize: 16, fontWeight: "700", marginTop: 18 },
+  date: { color: "rgba(255,255,255,0.58)", fontSize: 13, marginTop: 4 },
+  emptyText: { color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: 21, marginTop: 16 },
+  action: { marginTop: 18, minHeight: 46, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.10)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  actionText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   editorRow: { flexDirection: "row", alignItems: "center", marginTop: 16, gap: 8 },
   input: { flex: 1, height: 46, borderRadius: 14, backgroundColor: "#F7F3F8", paddingHorizontal: 14, color: palette.text, fontWeight: "700" },
   confirmButton: { width: 46, height: 46, borderRadius: 14, backgroundColor: palette.success, alignItems: "center", justifyContent: "center" },

@@ -14,6 +14,7 @@ interface AppContextType {
   loading: boolean;
   isLocked: boolean;
   authenticateBiometrics: () => Promise<boolean>;
+  suppressAppLock: (durationMs?: number) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -29,11 +30,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLocked, setIsLocked] = useState<boolean>(Platform.OS !== "web");
   const isLockedRef = useRef<boolean>(Platform.OS !== "web");
   const isAuthenticating = useRef<boolean>(false);
-  const appState = useRef<AppStateStatus>(AppState.currentState);
+  const appState = useRef<AppStateStatus>((AppState.currentState ?? "active") as AppStateStatus);
+  const activePairId = useRef<string | null>(null);
+  const lockSuppressedUntil = useRef<number>(0);
   
   // App-lock lifecycle tracking. Short system transitions (biometrics,
   // permission sheets and Android activity recreation) must not re-lock.
   const lastBackgroundTime = useRef<number>(0);
+
+  const suppressAppLock = useCallback((durationMs = 5000) => {
+    lockSuppressedUntil.current = Date.now() + durationMs;
+    lastBackgroundTime.current = 0;
+  }, []);
 
   const authenticateBiometrics = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === "web") {
@@ -74,7 +82,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     } finally {
       isAuthenticating.current = false;
-      appState.current = AppState.currentState;
+      appState.current = (AppState.currentState ?? "active") as AppStateStatus;
     }
   }, []);
 
@@ -86,6 +94,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       unsubscribeUser?.();
       unsubscribePair?.();
+      unsubscribePair = undefined;
+      activePairId.current = null;
 
       if (!user) {
         setUid(null);
@@ -112,6 +122,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const newPairId = userData.pairId ?? null;
         setPairId(newPairId);
+
+        // Profile preferences live on this same document. Do not tear down the
+        // active pair listener whenever an unrelated preference changes.
+        if (activePairId.current === newPairId && unsubscribePair) {
+          return;
+        }
+
+        activePairId.current = newPairId;
         setPartnerName(null);
 
         unsubscribePair?.();
@@ -191,6 +209,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const now = Date.now();
 
+      if (lockSuppressedUntil.current > now) {
+        lastBackgroundTime.current = 0;
+        return;
+      }
+
       if (nextAppState === "background" && previousAppState !== "background") {
         lastBackgroundTime.current = now;
       }
@@ -217,7 +240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <AppContext.Provider 
-      value={{ uid, myName, partnerName, pairId, loading, isLocked, authenticateBiometrics }}
+      value={{ uid, myName, partnerName, pairId, loading, isLocked, authenticateBiometrics, suppressAppLock }}
     >
       {children}
     </AppContext.Provider>

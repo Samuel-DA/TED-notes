@@ -119,7 +119,7 @@ export default function SupportPage() {
     <CarePage
       eyebrow="EMOTIONAL SUPPORT AND NEEDS"
       title="What do you need?"
-      subtitle={`A practical wish list and a private signal shared with ${partnerName || "your partner"}.`}
+      subtitle={`A practical wish list and a private signal shared with ${partnerName}.`}
       icon={<HeartHandshake color="#fff" size={23} />}
     >
       <CareCard title="My needs and wishes" subtitle="Add gifts, practical things or anything you would appreciate" icon={<ShoppingBag color={palette.rose} size={20} />}>
@@ -132,8 +132,8 @@ export default function SupportPage() {
         ))}
       </CareCard>
 
-      <CareCard title={`${partnerName || "Partner"}'s needs and wishes`} subtitle="A quiet place to find meaningful gift and support ideas" icon={<Gift color={palette.plum} size={20} />}>
-        {!partner?.needs.length ? <Text style={styles.empty}>{partnerName || "Your partner"} has not added anything yet.</Text> : partner.needs.map((item) => (
+      <CareCard title={`${partnerName}'s needs and wishes`} subtitle="A quiet place to find meaningful gift and support ideas" icon={<Gift color={palette.plum} size={20} />}>
+        {!partner?.needs.length ? <Text style={styles.empty}>{partnerName} has not added anything yet.</Text> : partner.needs.map((item) => (
           <View key={item.id} style={styles.needRow}><View style={[styles.giftIcon, styles.partnerGift]}><Gift color={palette.plum} size={16} /></View><Text style={styles.needText}>{item.text}</Text></View>
         ))}
       </CareCard>
@@ -143,7 +143,7 @@ export default function SupportPage() {
         <Slider minimumValue={1} maximumValue={10} step={1} value={otishValue} onValueChange={(value) => setOtishValue(Math.round(value))} onSlidingComplete={saveOtish} minimumTrackTintColor={palette.rose} maximumTrackTintColor="rgba(91,46,117,0.18)" thumbTintColor={palette.rose} />
         <View style={styles.scaleLabels}><Text style={styles.scaleLabel}>1 · barely</Text><Text style={styles.scaleLabel}>10 · extremely</Text></View>
         <Text style={styles.timestamp}>{formatTimestamp(mine?.otish?.updatedAt)}</Text>
-        <View style={styles.partnerSignal}><View><Text style={styles.partnerLabel}>{partnerName || "PARTNER"}</Text><Text style={styles.partnerTime}>{formatTimestamp(partner?.otish?.updatedAt)}</Text></View><Text style={styles.partnerScore}>{partner?.otish?.value || "—"}<Text style={styles.partnerOutOf}>/10</Text></Text></View>
+        <View style={styles.partnerSignal}><View><Text style={styles.partnerLabel}>{(partnerName ?? "").toUpperCase()}</Text><Text style={styles.partnerTime}>{formatTimestamp(partner?.otish?.updatedAt)}</Text></View><Text style={styles.partnerScore}>{partner?.otish?.value || "—"}<Text style={styles.partnerOutOf}>/10</Text></Text></View>
       </CareCard>
     </CarePage>
   );
@@ -152,11 +152,11 @@ export default function SupportPage() {
 const styles = StyleSheet.create({
   inputRow: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginBottom: 5 },
   input: { flex: 1, marginBottom: 0 },
-  addButton: { width: 50, height: 50, borderRadius: 16, backgroundColor: palette.rose, alignItems: "center", justifyContent: "center" },
+  addButton: { width: 50, height: 50, borderRadius: 14, backgroundColor: palette.rose, alignItems: "center", justifyContent: "center" },
   needRow: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(91,46,117,0.12)" },
   giftIcon: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F3" },
   partnerGift: { backgroundColor: "#F3EAF6" },
-  needText: { flex: 1, color: palette.text, fontSize: 13.5, fontWeight: "800" },
+  needText: { flex: 1, color: palette.text, fontSize: 14.5, fontWeight: "700" },
   delete: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#FBF2F5" },
   empty: { color: palette.muted, fontSize: 12.5, lineHeight: 19, paddingVertical: 6 },
   scaleValue: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", marginVertical: 6 },
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   scaleLabels: { flexDirection: "row", justifyContent: "space-between", marginTop: 3 },
   scaleLabel: { color: palette.muted, fontSize: 10, fontWeight: "800" },
   timestamp: { color: palette.plum, fontSize: 11, fontWeight: "800", textAlign: "center", marginTop: 11 },
-  partnerSignal: { marginTop: 16, minHeight: 68, borderRadius: 18, padding: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(91,46,117,0.09)", borderWidth: 1, borderColor: "rgba(91,46,117,0.12)" },
+  partnerSignal: { marginTop: 16, minHeight: 68, borderRadius: 14, padding: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(91,46,117,0.09)", borderWidth: 1, borderColor: "rgba(91,46,117,0.12)" },
   partnerLabel: { color: palette.plum, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
   partnerTime: { color: palette.muted, fontSize: 10, marginTop: 4 },
   partnerScore: { color: palette.plum, fontSize: 28, fontWeight: "900" },

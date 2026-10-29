@@ -82,10 +82,10 @@ export function MessageItem({
           ]}
         >
           {/* Dynamic Modern Speech Tails via CSS Layout Triangles */}
-          {!isMe && <View style={[styles.tail, styles.tailPartner]} />}
+          {!isMe && <View style={[styles.tail, styles.tailPartner, message.deletedAt && styles.tailDeletedPartner]} />}
 
           <View style={styles.bubbleContainerZone}>
-            <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubblePartner]}>
+            <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubblePartner, message.deletedAt && styles.bubbleDeleted]}>
               {message.replyTo && (
                 <View style={styles.nestedReplyBox}>
                   <Text style={styles.replyHeaderName}>{isMe ? "You" : partnerName}</Text>
@@ -96,15 +96,16 @@ export function MessageItem({
               )}
 
               {/* Long press listener attached natively inside text block wrappers */}
-              <Text 
-                onLongPress={onLongPress} 
-                style={[styles.messageText, isMe ? styles.textMe : styles.textPartner]}
+              <Text
+                onLongPress={onLongPress}
+                style={[styles.messageText, isMe ? styles.textMe : styles.textPartner, message.deletedAt && styles.textDeleted]}
               >
-                {message.text}
+                {message.deletedAt ? "This message was deleted" : message.text}
               </Text>
 
               <View style={styles.metaDataFooterRow}>
-                <Text style={styles.timeText}>{formatTime()}</Text>
+                <Text style={[styles.timeText, isMe && styles.metaMe, message.deletedAt && styles.deletedMeta]}>{formatTime()}</Text>
+                {!!message.editedAt && !message.deletedAt && <Text style={[styles.editedText, isMe && styles.metaMe]}> · edited</Text>}
                 {isMe && getSeenText() !== "" && (
                   <Text style={styles.seenReceiptText}> ✓✓</Text>
                 )}
@@ -123,7 +124,7 @@ export function MessageItem({
             )}
           </View>
 
-          {isMe && <View style={[styles.tail, styles.tailMe]} />}
+          {isMe && <View style={[styles.tail, styles.tailMe, message.deletedAt && styles.tailDeletedMe]} />}
         </Animated.View>
       </GestureDetector>
     </View>
@@ -183,6 +184,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderBottomLeftRadius: 0,
   },
+  bubbleDeleted: { backgroundColor: "#E9EDEF", elevation: 0, shadowOpacity: 0 },
   tail: {
     width: 0,
     height: 0,
@@ -199,6 +201,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
     marginLeft: -4,
   },
+  tailDeletedMe: { borderLeftColor: "#E9EDEF" },
+  tailDeletedPartner: { borderRightColor: "#E9EDEF" },
   tailPartner: {
     borderLeftWidth: 0,
     borderRightWidth: 10,
@@ -211,12 +215,13 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: "#111b21",
   },
-  textMe: {
-    color: "#111b21",
-  },
+  editedText: { fontSize: 9.5, color: "#667781", fontStyle: "italic" },
+  textMe: { color: "#111b21" },
   textPartner: {
     color: "#111b21",
   },
+  textDeleted: { color: "#667781", fontStyle: "italic" },
+  deletedMeta: { color: "#86939A" },
   metaDataFooterRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -228,6 +233,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#667781",
   },
+  metaMe: { color: "#667781" },
   seenReceiptText: {
     fontSize: 11,
     fontWeight: "700",

@@ -1,38 +1,47 @@
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { arrayRemove, arrayUnion, doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { HeartPulse } from "lucide-react-native";
-import React, { useEffect, useRef, useState } from "react";
 import {
+  arrayRemove,
+  arrayUnion,
+  doc,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
+import { HeartPulse } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
   Animated,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
   Text,
   View,
-  ActivityIndicator,
 } from "react-native";
-import ConfettiCannon from "react-native-confetti-cannon";
-import * as Haptics from "expo-haptics";
 
-import { getPrayerPointOfTheDay, PrayerPointData } from "../../utils/prayerpoint";
-import { getVerseOfTheDay, VerseData } from "../../utils/verseOfTheDay";
 import { getQuestionOfTheDay, QuestionData } from "../../utils/dailyQuestions";
+import {
+  getPrayerPointOfTheDay,
+  PrayerPointData,
+} from "../../utils/prayerpoint";
+import { getVerseOfTheDay, VerseData } from "../../utils/verseOfTheDay";
 
+import AppHeader from "@/components/AppHeader";
+import { gradients } from "@/constants/design";
+import DailyConnectionCard from "../../components/DailyConnectionCard";
+import DailyQuestionCard from "../../components/DailyQuestionCard";
+import LongDistanceCard from "../../components/LongDistanceCard";
 import LoveNote from "../../components/LoveNote";
 import MoodSelector from "../../components/MoodSelector";
 import PrayerCard from "../../components/PrayerCard";
 import VerseCard from "../../components/VerseCard";
-import DailyQuestionCard from "../../components/DailyQuestionCard";
-import DailyConnectionCard from "../../components/DailyConnectionCard";
-import LongDistanceCard from "../../components/LongDistanceCard";
-import AppHeader from "@/components/AppHeader";
 
-import { useApp } from "../../context/AppContext";
-import { db } from "../../firebase";
 import { notifyPartner } from "@/services/notifications";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { palette } from "@/constants/design";
+import { useApp } from "../../context/AppContext";
+import { db } from "../../firebase";
 
 export default function Home() {
   const { uid, myName, partnerName, pairId } = useApp();
@@ -45,11 +54,15 @@ export default function Home() {
   const [myMood, setMyMood] = useState("");
   const [partnerMood, setPartnerMood] = useState("");
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [noteTimestamps, setNoteTimestamps] = useState<Record<string, number>>({});
+  const [noteTimestamps, setNoteTimestamps] = useState<Record<string, number>>(
+    {},
+  );
   const [loading, setLoading] = useState(true);
   const [actualPartnerUid, setActualPartnerUid] = useState<string | null>(null);
 
-  const [questionAnswers, setQuestionAnswers] = useState<Record<string, string>>({});
+  const [questionAnswers, setQuestionAnswers] = useState<
+    Record<string, string>
+  >({});
   const [typedAnswer, setTypedAnswer] = useState("");
   const [isSendingPing, setIsSendingPing] = useState(false);
 
@@ -129,8 +142,16 @@ export default function Home() {
       .then((v) => {
         setVerse(v);
         Animated.parallel([
-          Animated.timing(verseFade, { toValue: 1, duration: 600, useNativeDriver: true }),
-          Animated.spring(verseScale, { toValue: 1, friction: 7, useNativeDriver: true }),
+          Animated.timing(verseFade, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.spring(verseScale, {
+            toValue: 1,
+            friction: 7,
+            useNativeDriver: true,
+          }),
         ]).start();
       })
       .catch(console.warn);
@@ -139,8 +160,16 @@ export default function Home() {
       .then((p) => {
         setPrayerPoint(p);
         Animated.parallel([
-          Animated.timing(prayerFade, { toValue: 1, duration: 600, useNativeDriver: true }),
-          Animated.spring(prayerScale, { toValue: 1, friction: 7, useNativeDriver: true }),
+          Animated.timing(prayerFade, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.spring(prayerScale, {
+            toValue: 1,
+            friction: 7,
+            useNativeDriver: true,
+          }),
         ]).start();
       })
       .catch(console.warn);
@@ -148,10 +177,25 @@ export default function Home() {
     const q = getQuestionOfTheDay();
     setDailyQuestion(q);
     Animated.parallel([
-      Animated.timing(questionFade, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(questionScale, { toValue: 1, friction: 7, useNativeDriver: true }),
+      Animated.timing(questionFade, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(questionScale, {
+        toValue: 1,
+        friction: 7,
+        useNativeDriver: true,
+      }),
     ]).start();
-  }, [prayerFade, prayerScale, questionFade, questionScale, verseFade, verseScale]);
+  }, [
+    prayerFade,
+    prayerScale,
+    questionFade,
+    questionScale,
+    verseFade,
+    verseScale,
+  ]);
 
   /** ACTIONS */
   const sendThinkingOfYouPing = async () => {
@@ -160,7 +204,14 @@ export default function Home() {
     setIsSendingPing(true);
 
     try {
-      await notifyPartner({ pairId: pairId || "", currentUid: uid || "", route: "home", action: "thinking_of_you", title: "Thinking of you... 💞", body: `${myName} is thinking about you right now!` });
+      await notifyPartner({
+        pairId: pairId || "",
+        currentUid: uid || "",
+        route: "home",
+        action: "thinking_of_you",
+        title: "Thinking of you... 💞",
+        body: `${myName} is thinking about you right now!`,
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -174,14 +225,22 @@ export default function Home() {
     try {
       const todayString = getLocalDateString();
       await updateDoc(doc(db, "pairs", pairId), {
-        [`dailyConfirmations.${todayString}.questionAnswers.${uid}`]: typedAnswer.trim(),
+        [`dailyConfirmations.${todayString}.questionAnswers.${uid}`]:
+          typedAnswer.trim(),
       });
 
       setTypedAnswer("");
       Keyboard.dismiss();
 
       if (actualPartnerUid) {
-        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "daily_answer", title: "Question Answered! 💬", body: `${myName} answered today's prompt. Reveal what they wrote!` });
+        await notifyPartner({
+          pairId,
+          currentUid: uid,
+          route: "home",
+          action: "daily_answer",
+          title: "Question Answered! 💬",
+          body: `${myName} answered today's prompt. Reveal what they wrote!`,
+        });
       }
     } catch (e) {
       console.error(e);
@@ -199,7 +258,14 @@ export default function Home() {
           : arrayUnion(uid),
       });
       if (!isAlreadyConfirmed && actualPartnerUid) {
-        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "prayer_complete", title: "Amen! 🙏", body: `${myName} has prayed over the prayer point today!` });
+        await notifyPartner({
+          pairId,
+          currentUid: uid,
+          route: "home",
+          action: "prayer_complete",
+          title: "Amen! 🙏",
+          body: `${myName} has prayed over the prayer point today!`,
+        });
       }
     } catch (e) {
       console.error(e);
@@ -217,7 +283,14 @@ export default function Home() {
           : arrayUnion(uid),
       });
       if (!isAlreadyConfirmed && actualPartnerUid) {
-        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "verse_complete", title: "Daily Bread 📖", body: `${myName} finished reading today's scripture verse!` });
+        await notifyPartner({
+          pairId,
+          currentUid: uid,
+          route: "home",
+          action: "verse_complete",
+          title: "Daily Bread 📖",
+          body: `${myName} finished reading today's scripture verse!`,
+        });
       }
     } catch (e) {
       console.error(e);
@@ -233,7 +306,14 @@ export default function Home() {
         [`moodDates.${uid}`]: getLocalDateString(),
       });
       if (actualPartnerUid) {
-        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "mood_updated", title: "Mood Update! Status check 💕", body: `${myName} changed their mood to ${emoji}` });
+        await notifyPartner({
+          pairId,
+          currentUid: uid,
+          route: "home",
+          action: "mood_updated",
+          title: "Mood Update! Status check 💕",
+          body: `${myName} changed their mood to ${emoji}`,
+        });
       }
     } catch (e) {
       console.error(e);
@@ -243,7 +323,12 @@ export default function Home() {
   const toggleDailyCheckIn = async () => {
     if (!pairId || !uid) return;
     const todayString = getLocalDateString();
-    const checkedIn = dailyHistory[todayString]?.checkInUsers?.includes(uid) ?? false;
+    const checkedIn =
+      dailyHistory[todayString]?.checkInUsers?.includes(uid) ?? false;
+    const partnerWasAlreadyHere = actualPartnerUid
+      ? (dailyHistory[todayString]?.checkInUsers?.includes(actualPartnerUid) ??
+        false)
+      : false;
 
     try {
       await updateDoc(doc(db, "pairs", pairId), {
@@ -253,7 +338,18 @@ export default function Home() {
       });
 
       if (!checkedIn && actualPartnerUid) {
-        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "daily_checkin", title: "Daily connection 💞", body: `${myName || "Your partner"} checked in for today. Join them!` });
+        await notifyPartner({
+          pairId,
+          currentUid: uid,
+          route: "home",
+          action: "daily_checkin",
+          title: partnerWasAlreadyHere
+            ? "Shared streak secured 🔥"
+            : "Daily connection 💞",
+          body: partnerWasAlreadyHere
+            ? `${myName || "Your partner"} checked in too. You both completed today.`
+            : `${myName || "Your partner"} checked in for today. Your check-in will complete the day.`,
+        });
       }
     } catch (error) {
       console.error("Unable to update daily check-in:", error);
@@ -268,7 +364,14 @@ export default function Home() {
         [`noteTimestamps.${uid}`]: Date.now(),
       });
       if (actualPartnerUid) {
-        await notifyPartner({ pairId, currentUid: uid, route: "home", action: "love_note_updated", title: "New Love Note left for you 💜", body: `${myName} updated their love note for you!` });
+        await notifyPartner({
+          pairId,
+          currentUid: uid,
+          route: "home",
+          action: "love_note_updated",
+          title: "New Love Note left for you 💜",
+          body: `${myName} updated their love note for you!`,
+        });
       }
     } catch (e) {
       console.error(e);
@@ -277,12 +380,18 @@ export default function Home() {
 
   const currentUid = uid ?? "";
   const iPrayed = prayerConfirmations.includes(currentUid);
-  const partnerPrayed = actualPartnerUid ? prayerConfirmations.includes(actualPartnerUid) : false;
+  const partnerPrayed = actualPartnerUid
+    ? prayerConfirmations.includes(actualPartnerUid)
+    : false;
   const iRead = verseConfirmations.includes(currentUid);
-  const partnerRead = actualPartnerUid ? verseConfirmations.includes(actualPartnerUid) : false;
+  const partnerRead = actualPartnerUid
+    ? verseConfirmations.includes(actualPartnerUid)
+    : false;
 
   const myAnswer = questionAnswers[currentUid] || "";
-  const partnerAnswer = actualPartnerUid ? questionAnswers[actualPartnerUid] || "" : "";
+  const partnerAnswer = actualPartnerUid
+    ? questionAnswers[actualPartnerUid] || ""
+    : "";
   const todayCheckIns = dailyHistory[getLocalDateString()]?.checkInUsers || [];
   const iCheckedIn = todayCheckIns.includes(currentUid);
   const partnerCheckedIn = actualPartnerUid
@@ -302,7 +411,8 @@ export default function Home() {
         .toISOString()
         .split("T")[0];
       const users = dailyHistory[dateKey]?.checkInUsers || [];
-      if (!users.includes(currentUid) || !users.includes(actualPartnerUid)) break;
+      if (!users.includes(currentUid) || !users.includes(actualPartnerUid))
+        break;
       streak += 1;
       cursor.setDate(cursor.getDate() - 1);
     }
@@ -310,9 +420,11 @@ export default function Home() {
   })();
 
   return (
-    <LinearGradient colors={[palette.ink, "#34203D", "#6A315C"]} style={{ flex: 1 }}>
+    <LinearGradient colors={gradients.app} style={styles.screen}>
       {loading || !uid || !pairId ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator size="large" color="#fff" />
           <Text style={{ color: "#fff", fontSize: 16, marginTop: 12 }}>
             Loading your space…
@@ -320,28 +432,30 @@ export default function Home() {
         </View>
       ) : (
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={styles.screen}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 24}
         >
           <ScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingTop: insets.top + 18,
-              paddingBottom: 125,
-            }}
+            contentContainerStyle={[
+              styles.content,
+              { paddingTop: insets.top + 4 },
+            ]}
             /* ⚡️ FIX: Bypasses keyboard layout focus interceptors to enable immediate touch registration */
             keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
           >
-            <ConfettiCannon count={40} origin={{ x: -10, y: 0 }} fadeOut />
-
-            {/* HEADER BLOCK */}
             <AppHeader
               eyebrow="YOUR PRIVATE SPACE"
               title={`Hi, ${myName || "love"}`}
-              subtitle={`Connected with ${partnerName || "your partner"}\n${isSendingPing ? "Sending your Thinking of You…" : "Tap the heart icon to send a Thinking of You"}`}
-              icon={<HeartPulse color="#fff" fill="rgba(255,255,255,0.18)" size={25} />}
+              subtitle={`Connected with ${partnerName}\n${isSendingPing ? "Sending your Thinking of You…" : "Tap the heart icon to send a Thinking of You"}`}
+              icon={
+                <HeartPulse
+                  color="#fff"
+                  fill="rgba(255,255,255,0.18)"
+                  size={25}
+                />
+              }
               onIconPress={sendThinkingOfYouPing}
               iconAccessibilityLabel="Send Thinking of You"
             />
@@ -349,60 +463,90 @@ export default function Home() {
             <DailyConnectionCard
               checkedIn={iCheckedIn}
               partnerCheckedIn={partnerCheckedIn}
-              partnerName={partnerName || "Partner"}
+              partnerName={partnerName || ""}
               streak={connectionStreak}
               onToggle={toggleDailyCheckIn}
             />
 
-            <LongDistanceCard pairId={pairId} uid={uid || ""} myName={myName || "Your partner"} partnerName={partnerName || "your love"} />
-
-            {/* MODULAR COMPONENT BLOCKS */}
-            <PrayerCard
-              prayerPoint={prayerPoint}
-              scaleAnim={prayerScale}
-              fadeAnim={prayerFade}
-              iPrayed={iPrayed}
-              partnerPrayed={partnerPrayed}
-              partnerName={partnerName || ""}
-              onToggle={togglePrayerConfirmation}
+            <LongDistanceCard
+              pairId={pairId}
+              uid={uid || ""}
+              myName={myName || "Your partner"}
+              partnerName={partnerName || "your love"}
             />
 
-            <View style={{ backgroundColor: "#fff", borderRadius: 24, padding: 16, marginBottom: 16 }}>
+            <View style={styles.grid}>
+              <View style={styles.gridItem}>
+                <PrayerCard
+                  prayerPoint={prayerPoint}
+                  scaleAnim={prayerScale}
+                  fadeAnim={prayerFade}
+                  iPrayed={iPrayed}
+                  partnerPrayed={partnerPrayed}
+                  partnerName={partnerName || ""}
+                  onToggle={togglePrayerConfirmation}
+                  compact
+                />
+              </View>
+              <View style={styles.gridItem}>
+                <VerseCard
+                  verse={verse}
+                  scaleAnim={verseScale}
+                  fadeAnim={verseFade}
+                  iRead={iRead}
+                  partnerRead={partnerRead}
+                  partnerName={partnerName || ""}
+                  onToggle={toggleVerseConfirmation}
+                  compact
+                />
+              </View>
+            </View>
+
+
+            <View style={styles.moodCard}>
               <MoodSelector
                 yourMood={myMood}
                 setYourMood={saveMyMood}
                 partnerMood={partnerMood}
                 yourLabel="Your Mood"
-                partnerLabel={`${partnerName || "Partner"}'s Mood`}
+                partnerLabel={`${partnerName}'s mood`}
               />
             </View>
 
-            <View style={{ gap: 12, marginBottom: 16 }}>
-              <LoveNote
-                title={`${partnerName || "Partner"}'s note 💕`}
-                note={actualPartnerUid ? notes[actualPartnerUid] || "" : ""}
-                timestamp={actualPartnerUid ? noteTimestamps[actualPartnerUid] : undefined}
-                readOnly
-              />
-              <LoveNote
-                title={`${myName}'s note 💜`}
-                note={notes[uid] || ""}
-                timestamp={noteTimestamps[uid]}
-                setNote={(v) => setNotes((n) => ({ ...n, [uid]: v }))}
-                saveNote={saveMyNote}
-              />
-            </View>
-
-            <VerseCard
-              verse={verse}
-              scaleAnim={verseScale}
-              fadeAnim={verseFade}
-              iRead={iRead}
-              partnerRead={partnerRead}
-              partnerName={partnerName || ""}
-              onToggle={toggleVerseConfirmation}
+            <SectionHeading
+              title="Love Notes"
+              subtitle=""
             />
+            <View style={styles.grid}>
+              <View style={styles.gridItem}>
+                <LoveNote
+                  title={`${partnerName}'s note`}
+                  note={actualPartnerUid ? notes[actualPartnerUid] || "" : ""}
+                  timestamp={
+                    actualPartnerUid
+                      ? noteTimestamps[actualPartnerUid]
+                      : undefined
+                  }
+                  readOnly
+                  compact
+                />
+              </View>
+              <View style={styles.gridItem}>
+                <LoveNote
+                  title="My note"
+                  note={notes[uid] || ""}
+                  timestamp={noteTimestamps[uid]}
+                  setNote={(v) => setNotes((n) => ({ ...n, [uid]: v }))}
+                  saveNote={saveMyNote}
+                  compact
+                />
+              </View>
+            </View>
 
+            <SectionHeading
+              title="One question"
+              subtitle="Answer first, then discover theirs"
+            />
             <DailyQuestionCard
               dailyQuestion={dailyQuestion}
               scaleAnim={questionScale}
@@ -420,3 +564,51 @@ export default function Home() {
     </LinearGradient>
   );
 }
+
+function SectionHeading({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <View style={styles.sectionHeading}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {!!subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  content: { paddingHorizontal: 16, paddingBottom: 125 },
+  sectionHeading: { marginTop: 7, marginBottom: 10, paddingHorizontal: 2 },
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  sectionSubtitle: {
+    color: "rgba(255,255,255,0.64)",
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: 3,
+  },
+  grid: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 10,
+    marginBottom: 16,
+  },
+  gridItem: { flex: 1, minWidth: 0 },
+  moodCard: {
+    backgroundColor: "rgba(255,255,255,0.90)",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.38)",
+  },
+});

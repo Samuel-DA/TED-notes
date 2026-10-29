@@ -91,6 +91,12 @@ describe("user privacy", () => {
     await assertSucceeds(setDoc(doc(user("alice"), "users", "alice", "pushTokens", "device-one"), token));
     await assertFails(setDoc(doc(user("bob"), "users", "alice", "pushTokens", "forged"), token));
   });
+
+  test("users control only their own notification preview preference", async () => {
+    await assertSucceeds(updateDoc(doc(user("alice"), "users", "alice"), { notificationPreview: false, settingsUpdatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(user("bob"), "users", "alice"), { notificationPreview: true, settingsUpdatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(user("alice"), "users", "alice"), { notificationPreview: "hidden", settingsUpdatedAt: serverTimestamp() }));
+  });
 });
 
 describe("pair membership", () => {
@@ -171,7 +177,7 @@ describe("pair data isolation", () => {
   });
 
   test("period tracker is shared only within the pair", async () => {
-    const tracker = { lastPeriodStart: "2026-10-01", cycleLength: 28, periodLength: 5, updatedBy: "alice", updatedByName: "Alice", updatedAt: serverTimestamp() };
+    const tracker = { lastPeriodStart: "2026-10-01", cycleLength: 28, periodLength: 5, periodDays: ["2026-10-01", "2026-10-02"], dailyLogs: { "2026-10-01": { flow: "Medium", symptoms: ["Cramps"], mood: "😌", note: "" } }, updatedBy: "alice", updatedByName: "Alice", updatedAt: serverTimestamp() };
     await assertSucceeds(setDoc(doc(user("alice"), "pairs", "pair-one", "periodTracker", "shared"), tracker));
     await assertSucceeds(getDoc(doc(user("bob"), "pairs", "pair-one", "periodTracker", "shared")));
     await assertFails(setDoc(doc(user("eve"), "pairs", "pair-one", "periodTracker", "shared"), { ...tracker, updatedBy: "eve", updatedByName: "Eve" }));
@@ -201,10 +207,13 @@ describe("pair data isolation", () => {
   });
 
   test("notification events are sender-bound and server-owned after creation", async () => {
-    const event = { actorUid: "alice", title: "Hello", body: "A shared update", route: "home", action: "test_event", createdAt: serverTimestamp() };
+    const event = { actorUid: "alice", title: "Hello", body: "A shared update", route: "home", action: "test_event", readBy: ["alice"], createdAt: serverTimestamp() };
     const eventRef = doc(user("alice"), "pairs", "pair-one", "notificationEvents", "event-one");
     await assertSucceeds(setDoc(eventRef, event));
     await assertFails(updateDoc(eventRef, { status: "sent" }));
+    await assertSucceeds(updateDoc(doc(user("bob"), "pairs", "pair-one", "notificationEvents", "event-one"), { readBy: ["alice", "bob"] }));
+    await assertSucceeds(updateDoc(doc(user("bob"), "pairs", "pair-one", "notificationEvents", "event-one"), { clearedBy: ["bob"] }));
+    await assertFails(updateDoc(doc(user("bob"), "pairs", "pair-one", "notificationEvents", "event-one"), { clearedBy: ["alice", "bob"] }));
     await assertFails(setDoc(doc(user("bob"), "pairs", "pair-one", "notificationEvents", "forged"), { ...event, actorUid: "alice" }));
     await assertFails(setDoc(doc(user("eve"), "pairs", "pair-one", "notificationEvents", "outside"), { ...event, actorUid: "eve" }));
   });
@@ -270,6 +279,25 @@ describe("pair data isolation", () => {
         "reactions.alice": "❤️",
       }),
     );
+  });
+
+  test("message senders can edit and soft-delete only their own message", async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "pairs", "pair-one", "messages", "editable"), {
+        text: "Original",
+        type: "text",
+        senderId: "alice",
+        createdAt: new Date(),
+        localCreatedAt: Date.now(),
+        readBy: ["alice"],
+      });
+    });
+    const aliceMessage = doc(user("alice"), "pairs", "pair-one", "messages", "editable");
+    const bobMessage = doc(user("bob"), "pairs", "pair-one", "messages", "editable");
+    await assertSucceeds(updateDoc(aliceMessage, { text: "Edited", editedAt: serverTimestamp() }));
+    await assertFails(updateDoc(bobMessage, { text: "Forged", editedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(aliceMessage, { text: "", deletedAt: serverTimestamp() }));
+    await assertFails(updateDoc(aliceMessage, { text: "Restored", editedAt: serverTimestamp() }));
   });
 
   test("scoreboard writes cannot change a partner's score", async () => {

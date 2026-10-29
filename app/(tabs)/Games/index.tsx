@@ -13,7 +13,7 @@ import DrawingActivity from "@/components/games/DrawingActivity";
 import MemoryMatch from "@/components/games/MemoryMatch";
 import ReactionRace from "@/components/games/ReactionRace";
 import AppHeader from "@/components/AppHeader";
-import { palette } from "@/constants/design";
+import { gradients, palette } from "@/constants/design";
 import { Gamepad2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -36,8 +36,8 @@ export default function Games() {
   const insets = useSafeAreaInsets();
 
   return (
-    <LinearGradient colors={[palette.ink, "#2A1834", "#4A244E"]} style={styles.container}>
-      <ScrollView scrollEnabled={!isDrawing} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 120 }}>
+    <LinearGradient colors={gradients.app} style={styles.container}>
+      <ScrollView scrollEnabled={!isDrawing} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: 120 }}>
         
         {/* TOP INTRO CARD */}
         <View style={styles.headerWrap}><AppHeader eyebrow="PLAYSPACE" title="Closer through play" subtitle="Live challenges, playful prompts and a canvas for two." icon={<Gamepad2 color="#fff" size={22} />} /></View>
@@ -64,26 +64,26 @@ export default function Games() {
 
         {/* ACTIVE MODULE CONTAINER */}
         {activeGame === "guess" && (
-          <GuessGame pairId={pairId} myName={myName || "Partner"} />
+          <GuessGame pairId={pairId} myName={myName || "You"} partnerName={partnerName || ""} />
         )}
         {activeGame === "knowme" && (
-          <KnowMeGame pairId={pairId} myName={myName || "Partner"} />
+          <KnowMeGame pairId={pairId} myName={myName || "You"} partnerName={partnerName || ""} />
         )}
         {activeGame === "thisorthat" && (
           <ThisOrThatGame
             pairId={pairId}
             uid={uid}
             myName={myName || "Your partner"}
-            partnerName={partnerName || "Partner"}
+            partnerName={partnerName || ""}
           />
         )}
         {activeGame === "cards" && <ConversationCards />}
-        {activeGame === "memory" && <MemoryMatch pairId={pairId} uid={uid} />}
+        {activeGame === "memory" && <MemoryMatch pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} />}
         {activeGame === "reaction" && (
-          <ReactionRace pairId={pairId} uid={uid} myName={myName || "Your partner"} partnerName={partnerName || "Partner"} />
+          <ReactionRace pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} />
         )}
         {activeGame === "draw" && (
-          <DrawingActivity pairId={pairId} uid={uid} myName={myName || "Your partner"} partnerName={partnerName || "Partner"} onDrawingChange={setIsDrawing} />
+          <DrawingActivity pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} onDrawingChange={setIsDrawing} />
         )}
 
         {/* SCOREBOARD RENDERING */}
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: "rgba(255,255,255,0.08)",
     marginHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 14,
     padding: 6,
     gap: 6,
     borderWidth: 1,
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    borderRadius: 15,
+    borderRadius: 11,
     gap: 6,
   },
   tabEmoji: { fontSize: 17 },
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: { fontSize: 13, fontWeight: "700", color: "#D4C7DB" },
-  activeTabText: { color: palette.plum, fontWeight: "900" },
+  activeTabText: { color: palette.rose, fontWeight: "800" },
   supportBanner: { marginHorizontal: 16, marginBottom: 12, padding: 11, borderRadius: 14, backgroundColor: "rgba(134,239,172,0.12)", borderWidth: 1, borderColor: "rgba(134,239,172,0.24)" },
   supportBannerText: { color: "#BBF7D0", fontSize: 12, fontWeight: "700", textAlign: "center" },
 });

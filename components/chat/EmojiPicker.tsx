@@ -6,10 +6,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Pencil, Trash2 } from "lucide-react-native";
 
 interface ReactionPickerProps {
   onSelect: (emoji: string) => void; // ✅ Updated props to match how you call it in chat.tsx
   onClose: () => void;
+  canManage?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
@@ -18,6 +22,9 @@ const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 export function EmojiPicker({
   onSelect,
   onClose,
+  canManage = false,
+  onEdit,
+  onDelete,
 }: ReactionPickerProps) {
   return (
     <View style={styles.centeredView}>
@@ -41,6 +48,10 @@ export function EmojiPicker({
             </TouchableOpacity>
           ))}
         </View>
+        {canManage && <View style={styles.actions}>
+          <TouchableOpacity style={styles.actionButton} onPress={onEdit}><Pencil color="#334155" size={18} /><Text style={styles.actionText}>Edit message</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={onDelete}><Trash2 color="#BE3455" size={18} /><Text style={[styles.actionText, styles.deleteText]}>Delete message</Text></TouchableOpacity>
+        </View>}
       </View>
     </View>
   );
@@ -69,7 +80,7 @@ const styles = StyleSheet.create({
   emojiRowContainer: {
     flexDirection: "row",
     backgroundColor: "#ffffff",
-    borderRadius: 30,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 10,
     elevation: 5,
@@ -92,4 +103,9 @@ const styles = StyleSheet.create({
     color: "#000",
     textAlign: "center",
   },
+  actions: { width: 270, backgroundColor: "#fff", borderRadius: 14, padding: 8, marginTop: 10, elevation: 6, shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 8 },
+  actionButton: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, borderRadius: 14 },
+  deleteButton: { backgroundColor: "#FFF1F4" },
+  actionText: { color: "#334155", fontSize: 14, fontWeight: "800" },
+  deleteText: { color: "#BE3455" },
 });

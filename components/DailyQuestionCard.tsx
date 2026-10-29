@@ -1,6 +1,7 @@
 import { Send } from "lucide-react-native";
 import React from "react";
 import { Animated, Pressable, Text, TextInput, View } from "react-native";
+import { palette } from "@/constants/design";
 
 interface DailyQuestionCardProps {
   dailyQuestion: { question: string } | null; // Adjusted to match custom epoch routine schema
@@ -31,8 +32,10 @@ export default function DailyQuestionCard({
     <Animated.View
       style={{
         padding: 18,
-        borderRadius: 22,
-        backgroundColor: "rgba(255, 255, 255, 0.96)",
+        borderRadius: 14,
+        backgroundColor: "rgba(255, 255, 255, 0.90)",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.38)",
         transform: [{ scale: scaleAnim }],
         opacity: fadeAnim,
         shadowColor: "#000",
@@ -45,7 +48,7 @@ export default function DailyQuestionCard({
     >
       <Text
         style={{
-          color: "#6366f1",
+          color: palette.rose,
           fontSize: 13,
           fontWeight: "700",
           textTransform: "uppercase",
@@ -100,7 +103,7 @@ export default function DailyQuestionCard({
             hitSlop={15}
             style={{
               padding: 8,
-              backgroundColor: typedAnswer.trim() ? "#6366f1" : "#d1d5db",
+              backgroundColor: typedAnswer.trim() ? palette.rose : "#d1d5db",
               borderRadius: 10,
               marginLeft: 6,
             }}

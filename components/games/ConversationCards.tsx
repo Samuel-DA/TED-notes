@@ -1,6 +1,7 @@
 import { MessageCircleHeart } from "lucide-react-native";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { palette } from "@/constants/design";
 
 const CARDS = [
   { category: "Us", text: "What is one small moment with me that you still think about?" },
@@ -56,33 +57,33 @@ const styles = StyleSheet.create({
   wrapper: { padding: 16 },
   card: {
     minHeight: 310,
-    borderRadius: 26,
+    borderRadius: 16,
     padding: 26,
-    backgroundColor: "#312e81",
+    backgroundColor: palette.inkSoft,
     justifyContent: "center",
     alignItems: "center",
   },
   iconCircle: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.16)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 18,
   },
   category: {
-    color: "#f9a8d4",
+    color: "#F0B9C4",
     textTransform: "uppercase",
     letterSpacing: 2,
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
   },
   question: {
     color: "#fff",
     fontSize: 23,
     lineHeight: 32,
-    fontWeight: "800",
+    fontWeight: "700",
     textAlign: "center",
     marginVertical: 18,
   },
@@ -93,5 +94,5 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 14,
   },
-  buttonText: { color: "#4c1d95", fontWeight: "900", textAlign: "center" },
+  buttonText: { color: palette.rose, fontWeight: "800", textAlign: "center" },
 });

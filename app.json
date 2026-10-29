@@ -65,7 +65,8 @@
         {
           "microphonePermission": "Allow TED Space to record private voice comfort capsules for your partner."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

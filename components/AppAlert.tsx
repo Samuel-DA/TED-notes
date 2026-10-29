@@ -105,12 +105,12 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     width: "100%",
-    borderRadius: 32,
+    borderRadius: 18,
     overflow: "hidden",
   },
   glass: {
     padding: 28,
-    borderRadius: 32,
+    borderRadius: 18,
     backgroundColor:
       Platform.OS === "ios"
         ? "rgba(255,255,255,0.25)"

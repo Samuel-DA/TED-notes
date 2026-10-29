@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { showAlert } from "../../components/AppAlert";
 import { auth, db } from "../../firebase";
+import { gradients } from "@/constants/design";
 
 export default function Register() {
   const router = useRouter();
@@ -100,7 +101,7 @@ export default function Register() {
   }, [password, confirmPassword, checkAnim]);
 
   return (
-    <LinearGradient colors={["#16121F", "#3B223F", "#7A385F"]} style={styles.container}>
+    <LinearGradient colors={gradients.app} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ width: "100%" }}
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.98)",
-    borderRadius: 28,
+    borderRadius: 18,
     padding: 28,
     shadowColor: "#000",
     shadowOpacity: 0.2,
@@ -255,15 +256,15 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "#F7F3F8",
     height: 56,
-    borderRadius: 16,
+    borderRadius: 12,
     paddingHorizontal: 18,
     fontSize: 16,
     marginBottom: 14,
   },
   button: {
-    backgroundColor: "#E85D75",
+    backgroundColor: "#B5445A",
     paddingVertical: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 10,
   },
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F7F3F8",
-    borderRadius: 16,
+    borderRadius: 12,
     paddingHorizontal: 18,
     height: 56,
     marginBottom: 14,

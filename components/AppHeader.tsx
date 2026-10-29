@@ -1,8 +1,10 @@
 import { auth } from "@/firebase";
-import { BlurView } from "expo-blur";
+import { palette } from "@/constants/design";
+import { useApp } from "@/context/AppContext";
+import { useNotificationCenter } from "@/hooks/useNotificationCenter";
 import { Href, useRouter } from "expo-router";
 import { signOut } from "firebase/auth";
-import { ArrowLeft, BookOpen, CalendarDays, ClipboardCheck, LogOut, Menu } from "lucide-react-native";
+import { ArrowLeft, Bell, BookOpen, CalendarDays, ClipboardCheck, LogOut, Menu } from "lucide-react-native";
 import React, { useState } from "react";
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -24,6 +26,8 @@ const NAV_ITEMS: { label: string; href: Href; icon: React.ComponentType<{ color:
 
 export default function AppHeader({ eyebrow, title, subtitle, icon, back = false, onIconPress, iconAccessibilityLabel }: Props) {
   const router = useRouter();
+  const { pairId, uid } = useApp();
+  const { unreadCount } = useNotificationCenter(pairId, uid);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const go = (href: Href) => {
@@ -39,33 +43,36 @@ export default function AppHeader({ eyebrow, title, subtitle, icon, back = false
   return (
     <>
       <View style={styles.shell}>
-        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
-        <Pressable
-          accessibilityLabel={back ? "Back" : "Open menu"}
-          onPress={() => back ? router.back() : setMenuOpen(true)}
-          style={styles.action}
-        >
-          {back ? <ArrowLeft color="#fff" size={21} /> : <Menu color="#fff" size={21} />}
-        </Pressable>
-        {onIconPress ? (
+        <View style={styles.utilityRow}>
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={iconAccessibilityLabel || "Header action"}
-            hitSlop={8}
-            onPress={onIconPress}
-            style={({ pressed }) => [styles.icon, styles.pressableIcon, pressed && styles.iconPressed]}
+            accessibilityLabel={back ? "Back" : "Open menu"}
+            onPress={() => back ? router.back() : setMenuOpen(true)}
+            style={styles.action}
           >
-            {icon}
+            {back ? <ArrowLeft color="#fff" size={22} /> : <Menu color="#fff" size={22} />}
           </Pressable>
-        ) : <View style={styles.icon}>{icon}</View>}
-        <View style={styles.copy}>
           <Text style={styles.eyebrow}>{eyebrow}</Text>
-          <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          {!!subtitle && <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text>}
+          <View style={styles.rightActions}>
+            <Pressable accessibilityLabel="Open notifications" onPress={() => router.push("/notifications" as Href)} style={styles.action}>
+              <Bell color="#fff" size={20} />
+              {unreadCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></View>}
+            </Pressable>
+            <Pressable accessibilityLabel="Sign out" onPress={confirmSignOut} style={styles.action}>
+              <LogOut color="#fff" size={20} />
+            </Pressable>
+          </View>
         </View>
-        <Pressable accessibilityLabel="Sign out" onPress={confirmSignOut} style={styles.action}>
-          <LogOut color="#fff" size={20} />
-        </Pressable>
+        <View style={styles.heroRow}>
+          <View style={styles.copy}>
+            <Text style={styles.title} numberOfLines={2}>{title}</Text>
+            {!!subtitle && <Text style={styles.subtitle} numberOfLines={3}>{subtitle}</Text>}
+          </View>
+          {onIconPress ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={iconAccessibilityLabel || "Header action"} hitSlop={8} onPress={onIconPress} style={({ pressed }) => [styles.icon, styles.pressableIcon, pressed && styles.iconPressed]}>
+              {icon}
+            </Pressable>
+          ) : <View style={styles.icon}>{icon}</View>}
+        </View>
       </View>
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
@@ -93,22 +100,27 @@ export default function AppHeader({ eyebrow, title, subtitle, icon, back = false
 }
 
 const styles = StyleSheet.create({
-  shell: { minHeight: 96, borderRadius: 28, overflow: "hidden", padding: 13, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16, backgroundColor: "rgba(22,18,31,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", shadowColor: "#1A1020", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.18, shadowRadius: 24, elevation: 8 },
-  action: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.10)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(232,93,117,0.88)" },
-  pressableIcon: { borderWidth: 1, borderColor: "rgba(255,255,255,0.34)", shadowColor: "#E85D75", shadowOpacity: 0.45, shadowRadius: 10, elevation: 5 },
+  shell: { marginBottom: 18 },
+  utilityRow: { minHeight: 38, flexDirection: "row", alignItems: "center" },
+  heroRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 10 },
+  action: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  rightActions: { flexDirection: "row", gap: 6 },
+  badge: { position: "absolute", right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: palette.rose, borderWidth: 1.5, borderColor: "#211827" },
+  badgeText: { color: "#fff", fontSize: 8, fontWeight: "900" },
+  icon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(181,68,90,0.84)" },
+  pressableIcon: { borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", shadowColor: palette.rose, shadowOpacity: 0.32, shadowRadius: 10, elevation: 4 },
   iconPressed: { transform: [{ scale: 0.9 }], opacity: 0.72 },
   copy: { flex: 1, minWidth: 0 },
-  eyebrow: { color: "#F9A8D4", fontSize: 8.5, fontWeight: "900", letterSpacing: 1.45 },
-  title: { color: "#fff", fontSize: 20, fontWeight: "900", letterSpacing: -0.4, marginTop: 2 },
-  subtitle: { color: "#D8C9DF", fontSize: 10.5, lineHeight: 14, marginTop: 2 },
+  eyebrow: { flex: 1, color: "rgba(255,255,255,0.64)", fontSize: 10.5, fontWeight: "700", letterSpacing: 1.25, marginLeft: 7 },
+  title: { color: "#fff", fontSize: 29, lineHeight: 32, fontWeight: "700", letterSpacing: -0.8 },
+  subtitle: { color: "rgba(255,255,255,0.66)", fontSize: 14, lineHeight: 20, marginTop: 6, fontWeight: "500" },
   backdrop: { flex: 1, backgroundColor: "rgba(15,10,18,0.52)", justifyContent: "flex-end", padding: 14 },
-  sheet: { backgroundColor: "rgba(255,252,253,0.98)", borderRadius: 30, padding: 20, paddingBottom: 28, borderWidth: 1, borderColor: "rgba(255,255,255,0.9)" },
+  sheet: { backgroundColor: "rgba(255,252,253,0.98)", borderRadius: 22, padding: 20, paddingBottom: 28, borderWidth: 1, borderColor: "rgba(255,255,255,0.9)" },
   handle: { width: 42, height: 5, borderRadius: 3, backgroundColor: "#DDD2DF", alignSelf: "center", marginBottom: 18 },
-  menuTitle: { color: "#211A2C", fontSize: 23, fontWeight: "900" },
-  menuSubtitle: { color: "#766D80", fontSize: 12, marginTop: 3, marginBottom: 16 },
+  menuTitle: { color: "#211A2C", fontSize: 23, fontWeight: "800" },
+  menuSubtitle: { color: "#766D80", fontSize: 13, marginTop: 3, marginBottom: 16 },
   menuGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  menuItem: { width: "31%", flexGrow: 1, minHeight: 82, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#F5EFF6", gap: 7 },
+  menuItem: { width: "31%", flexGrow: 1, minHeight: 82, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#F5EFF6", gap: 7 },
   menuIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" },
   menuLabel: { color: "#35283C", fontSize: 11, fontWeight: "900" },
 });

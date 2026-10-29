@@ -1,9 +1,10 @@
 export const palette = {
-  ink: "#16121F",
-  inkSoft: "#211A2C",
+  ink: "#17131D",
+  inkSoft: "#251B29",
   plum: "#5B2E75",
-  violet: "#7C4DFF",
-  rose: "#E85D75",
+  violet: "#76527D",
+  rose: "#B5445A",
+  roseSoft: "#F2DDE2",
   blush: "#FFF3F5",
   cream: "#FFF9F5",
   paper: "#FFFFFF",
@@ -17,16 +18,27 @@ export const palette = {
 };
 
 export const radii = {
-  small: 12,
-  medium: 18,
-  large: 26,
+  small: 10,
+  medium: 14,
+  large: 18,
   pill: 999,
 };
 
+export const gradients = {
+  app: ["#17131D", "#2D1C34", "#52283F"] as const,
+  chat: ["#17131D", "#251B29", "#382232"] as const,
+};
+
+export const glass = {
+  backgroundColor: "rgba(255,255,255,0.10)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.13)",
+};
+
 export const cardShadow = {
-  shadowColor: "#2A1635",
-  shadowOffset: { width: 0, height: 10 },
-  shadowOpacity: 0.09,
-  shadowRadius: 24,
-  elevation: 4,
+  shadowColor: "#140B17",
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.12,
+  shadowRadius: 18,
+  elevation: 3,
 };
