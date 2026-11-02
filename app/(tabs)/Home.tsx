@@ -7,19 +7,12 @@ import {
   onSnapshot,
   updateDoc,
 } from "firebase/firestore";
-import { HeartPulse } from "lucide-react-native";
+import { Heart } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Animated,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SectionHeader, ScreenBackground } from "@/components/ui/kit";
+import { useTabBarSpace } from "@/components/SleekTabBar";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 import { getQuestionOfTheDay, QuestionData } from "../../utils/dailyQuestions";
 import {
@@ -29,7 +22,6 @@ import {
 import { getVerseOfTheDay, VerseData } from "../../utils/verseOfTheDay";
 
 import AppHeader from "@/components/AppHeader";
-import { gradients } from "@/constants/design";
 import DailyConnectionCard from "../../components/DailyConnectionCard";
 import DailyQuestionCard from "../../components/DailyQuestionCard";
 import LongDistanceCard from "../../components/LongDistanceCard";
@@ -46,6 +38,11 @@ import { db } from "../../firebase";
 export default function Home() {
   const { uid, myName, partnerName, pairId } = useApp();
   const insets = useSafeAreaInsets();
+  const t = useTheme();
+  const styles = useStyles();
+  const tabSpace = useTabBarSpace();
+  const [nextVisitAt, setNextVisitAt] = useState<number | null>(null);
+  const [pingSent, setPingSent] = useState(false);
 
   /** DATA STATES */
   const [verse, setVerse] = useState<VerseData | null>(null);
@@ -129,6 +126,7 @@ export default function Home() {
       }
 
       setNotes(data.notes || {});
+      setNextVisitAt(typeof data.nextVisitAt === "number" ? data.nextVisitAt : null);
       setNoteTimestamps(data.noteTimestamps || {});
       setLoading(false);
     });
@@ -199,7 +197,7 @@ export default function Home() {
 
   /** ACTIONS */
   const sendThinkingOfYouPing = async () => {
-    if (!actualPartnerUid || isSendingPing) return;
+    if (!actualPartnerUid || isSendingPing || pingSent) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsSendingPing(true);
 
@@ -215,7 +213,9 @@ export default function Home() {
     } catch (e) {
       console.error(e);
     } finally {
+      setPingSent(true);
       setTimeout(() => setIsSendingPing(false), 1000);
+      setTimeout(() => setPingSent(false), 30_000);
     }
   };
 
@@ -356,11 +356,12 @@ export default function Home() {
     }
   };
 
-  const saveMyNote = async () => {
+  const saveMyNote = async (text: string) => {
     if (!pairId || !uid) return;
+    setNotes((current) => ({ ...current, [uid]: text }));
     try {
       await updateDoc(doc(db, "pairs", pairId), {
-        [`notes.${uid}`]: notes[uid] || "",
+        [`notes.${uid}`]: text,
         [`noteTimestamps.${uid}`]: Date.now(),
       });
       if (actualPartnerUid) {
@@ -419,196 +420,93 @@ export default function Home() {
     return streak;
   })();
 
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? "Still up" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }).toUpperCase();
+
+  if (loading || !uid || !pairId) {
+    return (
+      <ScreenBackground style={styles.loading}>
+        <ActivityIndicator size="large" color={t.accent} />
+        <Text style={styles.loadingText}>Loading your space…</Text>
+      </ScreenBackground>
+    );
+  }
+
   return (
-    <LinearGradient colors={gradients.app} style={styles.screen}>
-      {loading || !uid || !pairId ? (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+    <ScreenBackground>
+      <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + 4, paddingBottom: tabSpace + 28 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ color: "#fff", fontSize: 16, marginTop: 12 }}>
-            Loading your space…
-          </Text>
-        </View>
-      ) : (
-        <KeyboardAvoidingView
-          style={styles.screen}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 24}
-        >
-          <ScrollView
-            contentContainerStyle={[
-              styles.content,
-              { paddingTop: insets.top + 4 },
-            ]}
-            /* ⚡️ FIX: Bypasses keyboard layout focus interceptors to enable immediate touch registration */
-            keyboardShouldPersistTaps="always"
-            showsVerticalScrollIndicator={false}
-          >
-            <AppHeader
-              eyebrow="YOUR PRIVATE SPACE"
-              title={`Hi, ${myName || "love"}`}
-              subtitle={`Connected with ${partnerName}\n${isSendingPing ? "Sending your Thinking of You…" : "Tap the heart icon to send a Thinking of You"}`}
-              icon={
-                <HeartPulse
-                  color="#fff"
-                  fill="rgba(255,255,255,0.18)"
-                  size={25}
-                />
-              }
-              onIconPress={sendThinkingOfYouPing}
-              iconAccessibilityLabel="Send Thinking of You"
-            />
+          <AppHeader
+            eyebrow={dateLabel}
+            title={`${greeting}, ${myName || "love"}`}
+            subtitle={partnerName ? `You and ${partnerName}` : undefined}
+            right={
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={pingSent ? "Thinking of you sent" : "Send Thinking of You"}
+                onPress={sendThinkingOfYouPing}
+                style={({ pressed }) => [styles.ping, pressed && { transform: [{ scale: 0.92 }] }]}
+              >
+                <LinearGradient colors={pingSent ? [t.success, t.success] : t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                <Heart color="#fff" fill={pingSent ? "#fff" : "rgba(255,255,255,0.25)"} size={22} />
+                <Text style={styles.pingText}>{pingSent ? "Sent" : isSendingPing ? "…" : "Ping"}</Text>
+              </Pressable>
+            }
+          />
 
-            <DailyConnectionCard
-              checkedIn={iCheckedIn}
-              partnerCheckedIn={partnerCheckedIn}
-              partnerName={partnerName || ""}
-              streak={connectionStreak}
-              onToggle={toggleDailyCheckIn}
-            />
+          <DailyConnectionCard
+            checkedIn={iCheckedIn}
+            partnerCheckedIn={partnerCheckedIn}
+            partnerName={partnerName || ""}
+            streak={connectionStreak}
+            onToggle={toggleDailyCheckIn}
+          />
 
-            <LongDistanceCard
-              pairId={pairId}
-              uid={uid || ""}
-              myName={myName || "Your partner"}
-              partnerName={partnerName || "your love"}
-            />
+          <MoodSelector yourMood={myMood} setYourMood={saveMyMood} partnerMood={partnerMood} partnerLabel={partnerName || "Partner"} />
 
-            <View style={styles.grid}>
-              <View style={styles.gridItem}>
-                <PrayerCard
-                  prayerPoint={prayerPoint}
-                  scaleAnim={prayerScale}
-                  fadeAnim={prayerFade}
-                  iPrayed={iPrayed}
-                  partnerPrayed={partnerPrayed}
-                  partnerName={partnerName || ""}
-                  onToggle={togglePrayerConfirmation}
-                  compact
-                />
-              </View>
-              <View style={styles.gridItem}>
-                <VerseCard
-                  verse={verse}
-                  scaleAnim={verseScale}
-                  fadeAnim={verseFade}
-                  iRead={iRead}
-                  partnerRead={partnerRead}
-                  partnerName={partnerName || ""}
-                  onToggle={toggleVerseConfirmation}
-                  compact
-                />
-              </View>
-            </View>
+          <DailyQuestionCard
+            dailyQuestion={dailyQuestion}
+            scaleAnim={questionScale}
+            fadeAnim={questionFade}
+            typedAnswer={typedAnswer}
+            setTypedAnswer={setTypedAnswer}
+            myAnswer={myAnswer}
+            partnerAnswer={partnerAnswer}
+            partnerName={partnerName || ""}
+            onSave={saveQuestionAnswer}
+          />
 
+          <SectionHeader title="Faith together" style={{ marginTop: 12 }} />
+          <View style={styles.grid}>
+            <PrayerCard prayerPoint={prayerPoint} scaleAnim={prayerScale} fadeAnim={prayerFade} iPrayed={iPrayed} partnerPrayed={partnerPrayed} partnerName={partnerName || ""} onToggle={togglePrayerConfirmation} compact />
+            <VerseCard verse={verse} scaleAnim={verseScale} fadeAnim={verseFade} iRead={iRead} partnerRead={partnerRead} partnerName={partnerName || ""} onToggle={toggleVerseConfirmation} compact />
+          </View>
 
-            <View style={styles.moodCard}>
-              <MoodSelector
-                yourMood={myMood}
-                setYourMood={saveMyMood}
-                partnerMood={partnerMood}
-                yourLabel="Your Mood"
-                partnerLabel={`${partnerName}'s mood`}
-              />
-            </View>
+          <SectionHeader title="Love notes" />
+          <View style={styles.grid}>
+            <LoveNote title={`From ${partnerName || "them"}`} note={actualPartnerUid ? notes[actualPartnerUid] || "" : ""} timestamp={actualPartnerUid ? noteTimestamps[actualPartnerUid] : undefined} readOnly compact />
+            <LoveNote title="Your note" note={notes[uid] || ""} timestamp={noteTimestamps[uid]} onSave={saveMyNote} compact />
+          </View>
 
-            <SectionHeading
-              title="Love Notes"
-              subtitle=""
-            />
-            <View style={styles.grid}>
-              <View style={styles.gridItem}>
-                <LoveNote
-                  title={`${partnerName}'s note`}
-                  note={actualPartnerUid ? notes[actualPartnerUid] || "" : ""}
-                  timestamp={
-                    actualPartnerUid
-                      ? noteTimestamps[actualPartnerUid]
-                      : undefined
-                  }
-                  readOnly
-                  compact
-                />
-              </View>
-              <View style={styles.gridItem}>
-                <LoveNote
-                  title="My note"
-                  note={notes[uid] || ""}
-                  timestamp={noteTimestamps[uid]}
-                  setNote={(v) => setNotes((n) => ({ ...n, [uid]: v }))}
-                  saveNote={saveMyNote}
-                  compact
-                />
-              </View>
-            </View>
-
-            <SectionHeading
-              title="One question"
-              subtitle="Answer first, then discover theirs"
-            />
-            <DailyQuestionCard
-              dailyQuestion={dailyQuestion}
-              scaleAnim={questionScale}
-              fadeAnim={questionFade}
-              typedAnswer={typedAnswer}
-              setTypedAnswer={setTypedAnswer}
-              myAnswer={myAnswer}
-              partnerAnswer={partnerAnswer}
-              partnerName={partnerName || ""}
-              onSave={saveQuestionAnswer}
-            />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
-    </LinearGradient>
+          <View style={{ height: 12 }} />
+          <LongDistanceCard pairId={pairId} uid={uid} myName={myName || "Your partner"} partnerName={partnerName || "your love"} nextVisitAt={nextVisitAt} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 
-function SectionHeading({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <View style={styles.sectionHeading}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {!!subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingBottom: 125 },
-  sectionHeading: { marginTop: 7, marginBottom: 10, paddingHorizontal: 2 },
-  sectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: -0.2,
-  },
-  sectionSubtitle: {
-    color: "rgba(255,255,255,0.64)",
-    fontSize: 13.5,
-    lineHeight: 19,
-    marginTop: 3,
-  },
-  grid: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 10,
-    marginBottom: 16,
-  },
-  gridItem: { flex: 1, minWidth: 0 },
-  moodCard: {
-    backgroundColor: "rgba(255,255,255,0.90)",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.38)",
-  },
-});
+  content: { paddingHorizontal: 16 },
+  loading: { alignItems: "center", justifyContent: "center" },
+  loadingText: { color: t.textSecondary, fontSize: 15, marginTop: 12, fontWeight: "600" },
+  grid: { flexDirection: "row", alignItems: "stretch", gap: 10 },
+  ping: { width: 58, height: 58, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center", gap: 1, ...t.shadow },
+  pingText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+}));

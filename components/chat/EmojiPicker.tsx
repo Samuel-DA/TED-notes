@@ -1,111 +1,71 @@
+import { Copy, Pencil, Reply, Trash2 } from "lucide-react-native";
 import React from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Pencil, Trash2 } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
-interface ReactionPickerProps {
-  onSelect: (emoji: string) => void; // ✅ Updated props to match how you call it in chat.tsx
+type Props = {
+  onSelect: (emoji: string) => void;
   onClose: () => void;
+  /** Emoji the current user already reacted with (shown highlighted; tapping again removes it). */
+  current?: string;
   canManage?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  onReply?: () => void;
+  onCopy?: () => void;
+  preview?: string;
+};
+
+function Action({ icon: Icon, label, onPress, danger }: { icon: typeof Copy; label: string; onPress?: () => void; danger?: boolean }) {
+  const t = useTheme();
+  const s = useStyles();
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.action, pressed && { backgroundColor: t.surfacePressed }]}>
+      <Icon color={danger ? t.dangerText : t.text} size={18} />
+      <Text style={[s.actionText, danger && { color: t.dangerText }]}>{label}</Text>
+    </Pressable>
+  );
 }
 
-const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+const EMOJIS = ["❤️", "😂", "😮", "😢", "🙏", "👍"];
 
-// ✅ Changed component name to match file import expectations
-export function EmojiPicker({
-  onSelect,
-  onClose,
-  canManage = false,
-  onEdit,
-  onDelete,
-}: ReactionPickerProps) {
+export function EmojiPicker({ onSelect, onClose, current, canManage = false, onEdit, onDelete, onReply, onCopy, preview }: Props) {
+  const t = useTheme();
+  const s = useStyles();
   return (
-    <View style={styles.centeredView}>
-      {/* Pressable backdrop to close the menu safely */}
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      
-      {/* Container positioned safely via flex containment */}
-      <View style={styles.pickerCenteredView}>
-        <View style={styles.emojiRowContainer}>
+    <View style={s.root}>
+      <Pressable style={[s.backdrop, { backgroundColor: t.overlay }]} onPress={onClose} accessibilityLabel="Close" />
+      <View style={s.panel}>
+        {!!preview && <View style={s.preview}><Text style={s.previewText} numberOfLines={3}>{preview}</Text></View>}
+        <View style={s.emojis}>
           {EMOJIS.map((emoji) => (
-            <TouchableOpacity
-              key={emoji}
-              activeOpacity={0.7}
-              style={styles.emojiButton}
-              onPress={() => {
-                onSelect(emoji);
-                onClose();
-              }}
-            >
-              <Text style={styles.emojiText}>{emoji}</Text>
-            </TouchableOpacity>
+            <Pressable key={emoji} onPress={() => onSelect(emoji)} style={({ pressed }) => [s.emoji, current === emoji && s.emojiActive, pressed && { transform: [{ scale: 1.2 }] }]}>
+              <Text style={s.emojiText}>{emoji}</Text>
+            </Pressable>
           ))}
         </View>
-        {canManage && <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionButton} onPress={onEdit}><Pencil color="#334155" size={18} /><Text style={styles.actionText}>Edit message</Text></TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={onDelete}><Trash2 color="#BE3455" size={18} /><Text style={[styles.actionText, styles.deleteText]}>Delete message</Text></TouchableOpacity>
-        </View>}
+        <View style={s.actions}>
+          {onReply && <Action icon={Reply} label="Reply" onPress={onReply} />}
+          {onCopy && <Action icon={Copy} label="Copy text" onPress={onCopy} />}
+          {canManage && <Action icon={Pencil} label="Edit" onPress={onEdit} />}
+          {canManage && <Action icon={Trash2} label="Delete" onPress={onDelete} danger />}
+        </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  centeredView: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backdrop: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-  },
-  pickerCenteredView: {
-    paddingBottom: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 20,
-  },
-  emojiRowContainer: {
-    flexDirection: "row",
-    backgroundColor: "#ffffff",
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    alignItems: "center",
-  },
-  emojiButton: {
-    paddingHorizontal: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 44,
-    height: 44,
-  },
-  emojiText: {
-    fontSize: 28,
-    lineHeight: 34,
-    color: "#000",
-    textAlign: "center",
-  },
-  actions: { width: 270, backgroundColor: "#fff", borderRadius: 14, padding: 8, marginTop: 10, elevation: 6, shadowColor: "#000", shadowOpacity: 0.16, shadowRadius: 8 },
-  actionButton: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, borderRadius: 14 },
-  deleteButton: { backgroundColor: "#FFF1F4" },
-  actionText: { color: "#334155", fontSize: 14, fontWeight: "800" },
-  deleteText: { color: "#BE3455" },
-});
+const useStyles = makeStyles((t) => ({
+  root: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  panel: { width: "100%", maxWidth: 340, gap: 10 },
+  preview: { alignSelf: "center", maxWidth: "90%", backgroundColor: t.surfaceRaised, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, ...t.shadow },
+  previewText: { color: t.text, fontSize: 15, lineHeight: 21 },
+  emojis: { flexDirection: "row", justifyContent: "space-between", backgroundColor: t.surfaceRaised, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: t.border, ...t.shadowLg },
+  emoji: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  emojiActive: { backgroundColor: t.accentSoft },
+  emojiText: { fontSize: 27, lineHeight: 33 },
+  actions: { backgroundColor: t.surfaceRaised, borderRadius: 20, padding: 6, borderWidth: 1, borderColor: t.border, ...t.shadowLg },
+  action: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, borderRadius: 14 },
+  actionText: { color: t.text, fontSize: 15, fontWeight: "700" },
+}));

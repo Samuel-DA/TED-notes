@@ -1,18 +1,22 @@
 // app/(tabs)/Games/GuessGame.tsx
 import { getAuth } from "firebase/auth";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { arrayUnion, doc, increment, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Text, TextInput, TouchableOpacity, View, ActivityIndicator, StyleSheet, Alert } from "react-native";
+import { Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { Ionicons } from "@expo/vector-icons";
 import { db } from "../../firebase";
-import { gameStyles } from "./theme";
+import { useGameStyles } from "./theme";
 import { notifyGamePartner } from "./notify";
 
 const GAME_ID = "guess";
 const SCOREBOARD_ID = "global";
 
 export default function GuessGame({ pairId, myName, partnerName }: { pairId: string | null; myName: string; partnerName: string }) {
+  const t = useTheme();
+  const styles = useStyles();
+  const gameStyles = useGameStyles();
   const uid = getAuth().currentUser?.uid;
 
   const [game, setGame] = useState<any>(null);
@@ -44,7 +48,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
   if (!game) {
     return (
       <View style={gameStyles.card}>
-        <ActivityIndicator size="small" color="#B5445A" />
+        <ActivityIndicator size="small" color={t.accentText} />
       </View>
     );
   }
@@ -141,13 +145,13 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
       )}
 
       <View style={gameStyles.titleRow}>
-        <Ionicons name="gift" size={24} color="#B5445A" />
+        <Ionicons name="gift" size={24} color={t.accentText} />
         <Text style={gameStyles.title}>Guess the Meaning</Text>
       </View>
 
       {errorMessage && (
         <View style={styles.errorBanner}>
-          <Ionicons name="alert-circle" size={18} color="#ef4444" />
+          <Ionicons name="alert-circle" size={18} color={t.dangerText} />
           <Text style={styles.errorText}>{errorMessage}</Text>
         </View>
       )}
@@ -162,7 +166,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
             value={guessWord}
             onChangeText={setGuessWord}
             placeholder="e.g., ILY"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={t.textMuted}
             style={gameStyles.input}
           />
 
@@ -171,7 +175,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
             value={correctAnswer}
             onChangeText={setCorrectAnswer}
             placeholder="e.g., I love you"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={t.textMuted}
             style={gameStyles.input}
             autoCapitalize="none"
           />
@@ -181,7 +185,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
             value={hintInput}
             onChangeText={setHintInput}
             placeholder="e.g., Three little words..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={t.textMuted}
             style={gameStyles.input}
           />
 
@@ -196,7 +200,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
         <>
           {isCreator ? (
             <View style={gameStyles.waitingContainer}>
-              <ActivityIndicator size="small" color="#B5445A" style={{ marginBottom: 12 }} />
+              <ActivityIndicator size="small" color={t.accentText} style={{ marginBottom: 12 }} />
               <Text style={gameStyles.waitingText}>Active word: <Text style={{ fontWeight: "700" }}>{`“${game.prompt}”`}</Text></Text>
               
               {game.wrongGuesses && game.wrongGuesses.length > 0 ? (
@@ -217,7 +221,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
               )}
 
               <TouchableOpacity style={styles.abandonBtn} onPress={handleAbandonAndClear}>
-                <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                <Ionicons name="trash-outline" size={16} color={t.dangerText} />
                 <Text style={styles.abandonBtnText}>Clear & End Challenge</Text>
               </TouchableOpacity>
             </View>
@@ -230,7 +234,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
 
               {game.hint && (
                 <View style={styles.hintBox}>
-                  <Ionicons name="bulb-outline" size={16} color="#b45309" />
+                  <Ionicons name="bulb-outline" size={16} color={t.warningText} />
                   <Text style={styles.hintText}><Text style={{ fontWeight: "700" }}>Hint:</Text> {game.hint}</Text>
                 </View>
               )}
@@ -240,7 +244,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
                 value={playerGuess}
                 onChangeText={setPlayerGuess}
                 placeholder="What does it mean?..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={t.textMuted}
                 style={gameStyles.input}
                 autoCapitalize="none"
               />
@@ -249,8 +253,8 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.abandonBtn} onPress={handleAbandonAndClear}>
-                <Ionicons name="refresh-outline" size={16} color="#64748b" />
-                <Text style={[styles.abandonBtnText, { color: "#64748b" }]}>Give Up & Clear</Text>
+                <Ionicons name="refresh-outline" size={16} color={t.textSecondary} />
+                <Text style={[styles.abandonBtnText, { color: t.textSecondary }]}>Give Up & Clear</Text>
               </TouchableOpacity>
             </>
           )}
@@ -260,7 +264,7 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
       {/* FINISHED STATE */}
       {game.status === "finished" && (
         <View style={gameStyles.winContainer}>
-          <Ionicons name="trophy" size={40} color="#eab308" />
+          <Ionicons name="trophy" size={40} color={t.warningText} />
           <Text style={gameStyles.winText}>
             {game.winner === uid ? "🎉 Point Scored!" : `🙌 Solved by ${partnerName}!`}
           </Text>
@@ -275,44 +279,44 @@ export default function GuessGame({ pairId, myName, partnerName }: { pairId: str
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   errorBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fee2e2",
+    backgroundColor: t.dangerSoft,
     padding: 12,
     borderRadius: 14,
     marginVertical: 10,
     borderWidth: 1,
-    borderColor: "#fca5a5",
+    borderColor: t.danger,
     gap: 8,
   },
-  errorText: { color: "#b91c1c", fontSize: 14, fontWeight: "600", flex: 1 },
+  errorText: { color: t.dangerText, fontSize: 14, fontWeight: "600", flex: 1 },
   hintBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef3c7",
+    backgroundColor: t.warningSoft,
     padding: 12,
     borderRadius: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#fde68a",
+    borderColor: t.warning,
     gap: 6,
   },
-  hintText: { color: "#92400e", fontSize: 14, fontWeight: "500", flex: 1 },
+  hintText: { color: t.warningText, fontSize: 14, fontWeight: "500", flex: 1 },
   wrongGuessesBox: {
     width: "100%",
-    backgroundColor: "#f8fafc",
+    backgroundColor: t.surfaceSunken,
     borderRadius: 16,
     padding: 14,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: t.border,
   },
-  wrongGuessesTitle: { fontSize: 13, fontWeight: "700", color: "#64748b", marginBottom: 8, textAlign: "center" },
+  wrongGuessesTitle: { fontSize: 13, fontWeight: "700", color: t.textSecondary, marginBottom: 8, textAlign: "center" },
   badgeContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6 },
-  guessBadge: { backgroundColor: "#fee2e2", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: "#fca5a5" },
-  guessBadgeText: { color: "#ef4444", fontSize: 13, fontWeight: "700" },
+  guessBadge: { backgroundColor: t.dangerSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: t.danger },
+  guessBadgeText: { color: t.dangerText, fontSize: 13, fontWeight: "700" },
   abandonBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -321,8 +325,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.03)",
+    backgroundColor: t.surfaceSunken,
     gap: 6,
   },
-  abandonBtnText: { color: "#ef4444", fontSize: 13, fontWeight: "700" },
-});
+  abandonBtnText: { color: t.dangerText, fontSize: 13, fontWeight: "700" },
+}));

@@ -14,6 +14,7 @@ import {
   addDoc,
   arrayUnion,
   collection,
+  deleteField,
   doc,
   serverTimestamp,
   updateDoc,
@@ -27,17 +28,21 @@ import {
   Modal,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
-  View,
-} from "react-native";
+  View } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { palette } from "@/constants/design";
+import { ScreenBackground } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 type ChatItem = Message | { type: "date"; id: string; date: string };
 
 export default function Chat() {
   const router = useRouter();
+  const t = useTheme();
+  const styles = useStyles();
   const listRef = useRef<FlatList<ChatItem>>(null);
 
   // 👑 FIXED: Sourcing partnerName and myName directly from global context
@@ -127,7 +132,8 @@ export default function Chat() {
         }),
       });
 
-      await notifyPartner({
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void notifyPartner({
         pairId: safePairId,
         currentUid: safeUserId,
         route: "chat",
@@ -137,6 +143,8 @@ export default function Chat() {
       });
     } catch (e) {
       console.error("Error in sending sequence: ", e);
+      setText(currentText);
+      Alert.alert("Message not sent", "Check your connection and try again.");
     } finally {
       setSending(false);
     }
@@ -152,9 +160,12 @@ export default function Chat() {
         "messages",
         selectedMessage.id,
       );
+      const removing = selectedMessage.reactions?.[safeUserId] === emoji;
       await updateDoc(msgRef, {
-        [`reactions.${safeUserId}`]: emoji,
+        [`reactions.${safeUserId}`]: removing ? deleteField() : emoji,
       });
+      if (removing || selectedMessage.senderId === safeUserId) return;
+      void Haptics.selectionAsync();
       await notifyPartner({ pairId: safePairId, currentUid: safeUserId, route: "chat", action: "message_reaction", title: `${myName || "Your partner"} reacted ${emoji}`, body: "They reacted to a message in your chat." });
     } catch (e) {
       console.error("Failed adding reaction: ", e);
@@ -207,6 +218,20 @@ export default function Chat() {
     return chronoList.reverse();
   }, [messages]);
 
+  const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  const continuedIds = useMemo(() => {
+    const set = new Set<string>();
+    let prev: Message | null = null;
+    messages.forEach((m) => {
+      const at = m.createdAt?.toDate?.()?.getTime?.() ?? m.localCreatedAt ?? 0;
+      const prevAt = prev ? prev.createdAt?.toDate?.()?.getTime?.() ?? prev.localCreatedAt ?? 0 : 0;
+      if (prev && prev.senderId === m.senderId && at - prevAt < 3 * 60_000 && dayjs(at).isSame(dayjs(prevAt), "day")) set.add(m.id);
+      prev = m;
+    });
+    return set;
+  }, [messages]);
+  const nameFor = useCallback((senderId?: string) => (senderId === safeUserId ? "You" : partnerName || "Partner"), [partnerName, safeUserId]);
+
   const renderItem = useCallback(
     ({ item }: { item: ChatItem }) => {
       if ("type" in item && item.type === "date") {
@@ -214,24 +239,11 @@ export default function Chat() {
           ? "Today"
           : dayjs(item.date).isSame(dayjs().subtract(1, "day"), "day")
             ? "Yesterday"
-            : dayjs(item.date).format("MMM D, YYYY");
+            : dayjs(item.date).format("ddd D MMM YYYY");
 
         return (
-          <View style={{ alignItems: "center", marginVertical: 16 }}>
-            <View
-              style={{
-                backgroundColor: "rgba(255,255,255,0.76)",
-                paddingHorizontal: 14,
-                paddingVertical: 4,
-                borderRadius: 12,
-              }}
-            >
-              <Text
-                style={{ color: "#475569", fontSize: 11, fontWeight: "600" }}
-              >
-                {label}
-              </Text>
-            </View>
+          <View style={styles.dateRow}>
+            <View style={styles.datePill}><Text style={styles.dateText}>{label}</Text></View>
           </View>
         );
       }
@@ -242,6 +254,8 @@ export default function Chat() {
           isMe={item.senderId === safeUserId}
           onSwipeReply={() => { if (!item.deletedAt) { setEditingMessage(null); setReplyingTo(item); } }}
           partnerName={partnerName || ""}
+          replySender={item.replyTo ? nameFor(byId.get(item.replyTo.id)?.senderId) : undefined}
+          continued={continuedIds.has(item.id)}
           onLongPress={() => { if (!item.deletedAt) setSelectedMessage(item); }}
           onReact={() => { if (!item.deletedAt) setSelectedMessage(item); }}
           formatTime={() => formatTime(item)}
@@ -250,94 +264,102 @@ export default function Chat() {
         />
       );
     },
-    [safeUserId, formatTime, getSeenText, partnerName],
+    [safeUserId, formatTime, getSeenText, partnerName, nameFor, byId, continuedIds, styles],
   );
 
   if (loading)
-    return <ActivityIndicator style={{ flex: 1, backgroundColor: "#fff" }} />;
+    return <ScreenBackground style={{ alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.accent} /></ScreenBackground>;
   if (!safePairId || !safeUserId) return null;
 
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/Home"));
+
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.replace("/(tabs)/Home")} hitSlop={12} style={styles.headerButton}>
-          <ArrowLeft color="#fff" size={23} />
-        </Pressable>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{(partnerName || "P").slice(0, 1).toUpperCase()}</Text></View>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerName}>{partnerName || "My person"}</Text>
-          <View style={styles.privateRow}><LockKeyhole color="#B7DED7" size={11} /><Text style={styles.headerStatus}>your private conversation</Text></View>
+    <ScreenBackground>
+      <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+        <View style={styles.header}>
+          <Pressable accessibilityLabel="Back" onPress={goBack} hitSlop={12} style={styles.headerButton}>
+            <ArrowLeft color={t.text} size={22} />
+          </Pressable>
+          <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatar}>
+            <Text style={styles.avatarText}>{(partnerName || "P").slice(0, 1).toUpperCase()}</Text>
+          </LinearGradient>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerName} numberOfLines={1}>{partnerName || "My person"}</Text>
+            <View style={styles.privateRow}><LockKeyhole color={t.textMuted} size={11} /><Text style={styles.headerStatus}>Private to you two</Text></View>
+          </View>
         </View>
-      </View>
-      <KeyboardAvoidingView
-        style={styles.chatArea}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
-        enabled
-      >
-        <View pointerEvents="none" style={styles.wallpaper}>
-          <Text style={[styles.wallpaperMark, { top: 40, left: 22 }]}>♡</Text>
-          <Text style={[styles.wallpaperMark, { top: 150, right: 35 }]}>•</Text>
-          <Text style={[styles.wallpaperMark, { top: 310, left: 75 }]}>☾</Text>
-          <Text style={[styles.wallpaperMark, { top: 500, right: 80 }]}>♡</Text>
-        </View>
-        <FlatList
-          ref={listRef}
-          inverted
-          data={invertedMessagesWithDates}
-          extraData={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-          showsVerticalScrollIndicator={false}
-          removeClippedSubviews={Platform.OS === "android"}
-          initialNumToRender={15}
-          contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 14 }}
-        />
+        <KeyboardAvoidingView style={styles.chatArea} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={0}>
+          {invertedMessagesWithDates.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>💌</Text>
+              <Text style={styles.emptyTitle}>Say hello to {partnerName || "your person"}</Text>
+              <Text style={styles.emptyBody}>Everything here stays between the two of you.</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={listRef}
+              inverted
+              data={invertedMessagesWithDates}
+              extraData={messages}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              showsVerticalScrollIndicator={false}
+              removeClippedSubviews={Platform.OS === "android"}
+              initialNumToRender={15}
+              contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 14 }}
+            />
+          )}
 
-        <ChatInput
-          text={text}
-          setText={setText}
-          sending={sending}
-          replyingTo={replyingTo}
-          editingMessage={editingMessage}
-          onCancelReply={() => setReplyingTo(null)}
-          onCancelEdit={() => { setEditingMessage(null); setText(""); }}
-          onSend={sendMessage}
-          onPickImage={() => {}}
-        />
+          <ChatInput
+            text={text}
+            setText={setText}
+            sending={sending}
+            replyingTo={replyingTo}
+            replyingToName={replyingTo ? nameFor(replyingTo.senderId) : undefined}
+            editingMessage={editingMessage}
+            onCancelReply={() => setReplyingTo(null)}
+            onCancelEdit={() => { setEditingMessage(null); setText(""); }}
+            onSend={sendMessage}
+            onPickImage={() => {}}
+          />
 
-      <Modal
-        visible={selectedMessage !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSelectedMessage(null)}
-      >
-        <EmojiPicker
-          onSelect={handleAddReaction}
-          onClose={() => setSelectedMessage(null)}
-          canManage={selectedMessage?.senderId === safeUserId && !selectedMessage?.deletedAt}
-          onEdit={beginEdit}
-          onDelete={confirmDelete}
-        />
-      </Modal>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          <Modal visible={selectedMessage !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSelectedMessage(null)}>
+            <EmojiPicker
+              preview={selectedMessage?.text}
+              current={selectedMessage?.reactions?.[safeUserId]}
+              onSelect={handleAddReaction}
+              onClose={() => setSelectedMessage(null)}
+              onReply={() => { if (selectedMessage) { setEditingMessage(null); setReplyingTo(selectedMessage); } setSelectedMessage(null); }}
+              onCopy={() => { if (selectedMessage?.text) void Clipboard.setStringAsync(selectedMessage.text); void Haptics.selectionAsync(); setSelectedMessage(null); }}
+              canManage={selectedMessage?.senderId === safeUserId && !selectedMessage?.deletedAt}
+              onEdit={beginEdit}
+              onDelete={confirmDelete}
+            />
+          </Modal>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.whatsappDark },
-  header: { minHeight: 66, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", backgroundColor: palette.whatsappDark, paddingBottom: 8 },
-  headerButton: { width: 38, height: 44, alignItems: "center", justifyContent: "center" },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#D7EFEA", alignItems: "center", justifyContent: "center", marginRight: 11 },
-  avatarText: { color: palette.whatsappDark, fontSize: 18, fontWeight: "800" },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1 },
+  header: { minHeight: 64, paddingHorizontal: 10, paddingBottom: 10, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: t.border },
+  headerButton: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceSunken },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "#fff", fontSize: 18, fontWeight: "800" },
   headerCopy: { flex: 1 },
-  headerName: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  headerName: { color: t.text, fontSize: 17, fontWeight: "800" },
   privateRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  headerStatus: { color: "#C4E1DC", fontSize: 11 },
-  chatArea: { flex: 1, backgroundColor: "#EFEAE2" },
-  wallpaper: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, overflow: "hidden" },
-  wallpaperMark: { position: "absolute", color: "rgba(92,80,67,0.07)", fontSize: 38, fontWeight: "800" },
-});
+  headerStatus: { color: t.textMuted, fontSize: 12 },
+  chatArea: { flex: 1 },
+  dateRow: { alignItems: "center", marginVertical: 14 },
+  datePill: { backgroundColor: t.surfaceSunken, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
+  dateText: { color: t.textSecondary, fontSize: 11.5, fontWeight: "700" },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
+  emptyEmoji: { fontSize: 44 },
+  emptyTitle: { color: t.text, fontSize: 19, fontWeight: "800", marginTop: 12, textAlign: "center" },
+  emptyBody: { color: t.textSecondary, fontSize: 14, marginTop: 6, textAlign: "center" },
+}));

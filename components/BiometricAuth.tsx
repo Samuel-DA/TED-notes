@@ -1,89 +1,61 @@
 import * as LocalAuthentication from "expo-local-authentication";
+import { LinearGradient } from "expo-linear-gradient";
+import { Fingerprint, Heart } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Text, View } from "react-native";
+import { Button, ScreenBackground } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
-
-type Props = {
-  onAuthenticated: () => void;
-};
+type Props = { onAuthenticated: () => void };
 
 export default function BiometricAuth({ onAuthenticated }: Props) {
-  const [biometricSupported, setBiometricSupported] = useState(false);
+  const t = useTheme();
+  const styles = useStyles();
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [failed, setFailed] = useState(false);
   const isAuthenticating = useRef(false);
   const hasAutoPrompted = useRef(false);
 
-  const checkDeviceForBiometrics = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-    setBiometricSupported(hasHardware && isEnrolled);
-  };
-
-  // ✅ Wrap handleAuthenticate in useCallback to avoid hook warning
-  const handleAuthenticate = useCallback(async () => {
-    if (!biometricSupported || isAuthenticating.current) return;
-
+  const authenticate = useCallback(async () => {
+    if (isAuthenticating.current) return;
+    if (!supported) { onAuthenticated(); return; }
     isAuthenticating.current = true;
     try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Unlock TED Space",
-        fallbackLabel: "Use Passcode",
-      });
-
-      if (result.success) {
-        onAuthenticated();
-      }
-    } finally {
-      isAuthenticating.current = false;
-    }
-  }, [biometricSupported, onAuthenticated]);
+      const result = await LocalAuthentication.authenticateAsync({ promptMessage: "Unlock TED Space", fallbackLabel: "Use passcode" });
+      if (result.success) onAuthenticated(); else setFailed(true);
+    } finally { isAuthenticating.current = false; }
+  }, [onAuthenticated, supported]);
 
   useEffect(() => {
-    if (biometricSupported && !hasAutoPrompted.current) {
-      hasAutoPrompted.current = true;
-      void handleAuthenticate();
-    }
-  }, [biometricSupported, handleAuthenticate]);
-
-  // 🔹 Check if biometrics are supported
-  useEffect(() => {
-    checkDeviceForBiometrics();
+    void (async () => {
+      const ok = (await LocalAuthentication.hasHardwareAsync()) && (await LocalAuthentication.isEnrolledAsync());
+      setSupported(ok);
+    })();
   }, []);
 
+  useEffect(() => {
+    if (supported && !hasAutoPrompted.current) { hasAutoPrompted.current = true; void authenticate(); }
+  }, [supported, authenticate]);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to TED Space</Text>
-      {biometricSupported ? (
-        <TouchableOpacity style={styles.button} onPress={handleAuthenticate}>
-          <Text style={styles.buttonText}>
-            Unlock with Face ID / Fingerprint
-          </Text>
-        </TouchableOpacity>
-      ) : (
-        <Text style={styles.text}>Biometric authentication not available</Text>
-      )}
-    </View>
+    <ScreenBackground style={styles.container}>
+      <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mark}>
+        <Heart color="#fff" fill="#fff" size={32} />
+      </LinearGradient>
+      <Text style={styles.title}>Welcome back</Text>
+      <Text style={styles.body}>
+        {supported === false ? "Biometric unlock isn't set up on this phone, so you can go straight in." : failed ? "That didn't work. Try again when you're ready." : "Unlock to open your shared space."}
+      </Text>
+      <View style={{ alignSelf: "stretch", marginTop: 28 }}>
+        <Button title={supported === false ? "Continue" : "Unlock"} icon={supported === false ? undefined : Fingerprint} onPress={authenticate} loading={supported === null} />
+      </View>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    marginBottom: 20,
-    color: "#211A2C",
-  },
-  text: { fontSize: 16, color: "#6b7280", marginTop: 10 },
-  button: {
-    backgroundColor: "#B5445A",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 22,
-  },
-  buttonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-});
+const useStyles = makeStyles((t) => ({
+  container: { justifyContent: "center", alignItems: "center", padding: 28 },
+  mark: { width: 84, height: 84, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 22, ...t.shadowLg },
+  title: { color: t.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.7 },
+  body: { color: t.textSecondary, fontSize: 15, lineHeight: 22, textAlign: "center", marginTop: 8, maxWidth: 300 },
+}));

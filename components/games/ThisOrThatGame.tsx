@@ -1,7 +1,8 @@
 import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { Shuffle } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { db } from "../../firebase";
 import { notifyGamePartner } from "./notify";
 
@@ -37,6 +38,8 @@ type Props = {
 };
 
 export default function ThisOrThatGame({ pairId, uid, myName, partnerName }: Props) {
+  const t = useTheme();
+  const styles = useStyles();
   const [game, setGame] = useState<GameData | null>(null);
   const gameRef = useMemo(
     () => (pairId ? doc(db, "pairs", pairId, "games", GAME_ID) : null),
@@ -73,7 +76,7 @@ export default function ThisOrThatGame({ pairId, uid, myName, partnerName }: Pro
   if (!game) {
     return (
       <View style={styles.card}>
-        <Shuffle color="#7c3aed" size={28} />
+        <Shuffle color={t.violetText} size={28} />
         <Text style={styles.title}>This or That</Text>
         <Text style={styles.description}>
           Choose privately, then reveal whether you matched.
@@ -94,7 +97,7 @@ export default function ThisOrThatGame({ pairId, uid, myName, partnerName }: Pro
   return (
     <View style={styles.card}>
       <View style={styles.titleRow}>
-        <Shuffle color="#7c3aed" size={24} />
+        <Shuffle color={t.violetText} size={24} />
         <Text style={styles.title}>This or That</Text>
         <Text style={styles.round}>Round {game.round}</Text>
       </View>
@@ -133,7 +136,7 @@ export default function ThisOrThatGame({ pairId, uid, myName, partnerName }: Pro
         <Text style={styles.status}>Choose one—your answer stays hidden until you both pick.</Text>
       ) : !bothAnswered ? (
         <View style={styles.waitingRow}>
-          <ActivityIndicator size="small" color="#B5445A" />
+          <ActivityIndicator size="small" color={t.accentText} />
           <Text style={styles.status}>Waiting for {partnerName}…</Text>
         </View>
       ) : (
@@ -150,9 +153,9 @@ export default function ThisOrThatGame({ pairId, uid, myName, partnerName }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: t.surface,
     margin: 16,
     padding: 20,
     borderRadius: 16,
@@ -162,32 +165,32 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: "#211A2C", fontSize: 22, fontWeight: "700", flex: 1 },
-  round: { color: "#B5445A", fontSize: 12, fontWeight: "800" },
-  description: { color: "#64748b", lineHeight: 20, marginTop: 8, marginBottom: 16 },
+  title: { color: t.text, fontSize: 22, fontWeight: "700", flex: 1 },
+  round: { color: t.accentText, fontSize: 12, fontWeight: "800" },
+  description: { color: t.textSecondary, lineHeight: 20, marginTop: 8, marginBottom: 16 },
   options: { gap: 10 },
   option: {
     borderWidth: 2,
-    borderColor: "#ede9fe",
-    backgroundColor: "#faf5ff",
+    borderColor: t.border,
+    backgroundColor: t.surfaceSunken,
     borderRadius: 12,
     minHeight: 66,
     padding: 15,
     justifyContent: "center",
   },
-  selectedOption: { borderColor: "#B5445A", backgroundColor: "#B5445A" },
-  partnerOption: { borderColor: "#f472b6" },
-  optionText: { color: "#4c1d95", textAlign: "center", fontWeight: "800", fontSize: 16 },
+  selectedOption: { borderColor: t.accent, backgroundColor: t.accent },
+  partnerOption: { borderColor: t.accent },
+  optionText: { color: t.violetText, textAlign: "center", fontWeight: "800", fontSize: 16 },
   selectedOptionText: { color: "#fff" },
-  partnerBadge: { color: "#be185d", textAlign: "center", fontSize: 11, marginTop: 5 },
-  status: { color: "#64748b", textAlign: "center", marginTop: 16, fontSize: 12 },
+  partnerBadge: { color: t.accentText, textAlign: "center", fontSize: 11, marginTop: 5 },
+  status: { color: t.textSecondary, textAlign: "center", marginTop: 16, fontSize: 12 },
   waitingRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 },
-  result: { color: "#4c1d95", textAlign: "center", fontWeight: "900", marginTop: 18 },
+  result: { color: t.violetText, textAlign: "center", fontWeight: "900", marginTop: 18 },
   primaryButton: {
-    backgroundColor: "#B5445A",
+    backgroundColor: t.accent,
     borderRadius: 12,
     paddingVertical: 14,
     marginTop: 16,
   },
   primaryButtonText: { color: "#fff", fontWeight: "800", textAlign: "center" },
-});
+}));

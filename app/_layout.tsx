@@ -1,7 +1,11 @@
 // app/_layout.tsx
 import { Href, Redirect, Stack, usePathname, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ActivityIndicator, AppState, StyleSheet, Text, View, TouchableOpacity, Platform } from "react-native";
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View, Platform } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
+import { ScreenBackground } from "@/components/ui/kit";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Fingerprint, Heart, Lock } from "lucide-react-native";
@@ -17,11 +21,16 @@ enableScreens(true);
 enableFreeze(true);
 
 function SplashScreen() {
+  const t = useTheme();
+  const styles = useStyles();
   return (
-    <SafeAreaView style={styles.splashContainer}>
-      <ActivityIndicator size="large" color="#4f46e5" />
-      <Text style={styles.splashText}>Loading your space…</Text>
-    </SafeAreaView>
+    <ScreenBackground style={styles.splash}>
+      <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.splashMark}>
+        <Heart size={30} color="#fff" fill="#fff" />
+      </LinearGradient>
+      <Text style={styles.splashTitle}>TED Space</Text>
+      <ActivityIndicator color={t.accent} style={{ marginTop: 18 }} />
+    </ScreenBackground>
   );
 }
 
@@ -33,6 +42,7 @@ function NotificationNavigator() {
     let appStateSubscription: { remove: () => void } | null = null;
 
     const setup = async () => {
+      if (Platform.OS === "web") return;
       const Notifications = await getNotificationsModule();
       if (!active || !Notifications) return;
       const open = (response: NotificationResponse | null) => {
@@ -72,6 +82,12 @@ function NotificationNavigator() {
 function RootNavigator() {
   const { loading, uid, pairId, partnerName, isLocked, authenticateBiometrics } = useApp();
   const pathname = usePathname();
+  const t = useTheme();
+  const styles = useStyles();
+
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(t.bgSolid).catch(() => undefined);
+  }, [t.bgSolid]);
 
   if (loading) return <SplashScreen />;
 
@@ -102,36 +118,38 @@ function RootNavigator() {
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(auth)/Login" />
+      <StatusBar style={t.statusBar} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bgSolid }, animation: "fade_from_bottom" }}>
+        <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
+        <Stack.Screen name="(auth)/Login" options={{ animation: "fade" }} />
         <Stack.Screen name="(auth)/Register" />
         <Stack.Screen name="(auth)/Biometric" />
         <Stack.Screen name="(auth)/PairScreen" />
         <Stack.Screen name="(auth)/WaitingForPartner" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="settings" />
-        <Stack.Screen name="chat" />
+        <Stack.Screen name="chat" options={{ animation: "slide_from_right" }} />
       </Stack>
 
       {pairId && partnerName && !pathname.endsWith("/chat") && !shouldShowLock && <FloatingChatButton />}
       {shouldShowLock && (
-        <LinearGradient colors={["#16121F", "#3B223F", "#71364F"]} style={styles.lockOverlay}>
+        <ScreenBackground style={styles.lockOverlay}>
           <SafeAreaView style={styles.lockSafe}>
             <View style={styles.lockBox}>
-              <View style={styles.lockIconBox}>
+              <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.lockIconBox}>
                 <Heart size={34} color="#fff" fill="#fff" />
-                <View style={styles.miniLock}><Lock size={12} color="#5B2E75" /></View>
-              </View>
-              <Text style={styles.lockTitle}>TED Space Locked</Text>
-              <Text style={styles.lockSubtitle}>Your conversations and shared moments are private. Unlock to come back in.</Text>
-              <TouchableOpacity onPress={authenticateBiometrics} style={styles.lockButton}>
+                <View style={styles.miniLock}><Lock size={12} color={t.plum} /></View>
+              </LinearGradient>
+              <Text style={styles.lockTitle}>TED Space is locked</Text>
+              <Text style={styles.lockSubtitle}>Your conversations and shared moments stay private. Unlock to come back in.</Text>
+              <Pressable onPress={authenticateBiometrics} style={({ pressed }) => [styles.lockButton, pressed && { transform: [{ scale: 0.97 }] }]}>
+                <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
                 <Fingerprint color="#fff" size={20} />
-                <Text style={styles.lockButtonText}>Unlock securely</Text>
-              </TouchableOpacity>
+                <Text style={styles.lockButtonText}>Unlock</Text>
+              </Pressable>
             </View>
           </SafeAreaView>
-        </LinearGradient>
+        </ScreenBackground>
       )}
     </>
   );
@@ -149,71 +167,17 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  splashContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#eef2ff",
-  },
-  splashText: {
-    marginTop: 16,
-    fontSize: 18,
-    color: "#4f46e5",
-    fontWeight: "600",
-  },
-  lockOverlay: { ...StyleSheet.absoluteFill, zIndex: 20, elevation: 20 },
-  lockSafe: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  lockBox: {
-    alignItems: "center",
-    padding: 24,
-  },
-  lockIconBox: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  miniLock: { position: "absolute", right: 3, bottom: 3, width: 26, height: 26, borderRadius: 13, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  lockTitle: { 
-    color: "#fff", 
-    fontSize: 24, 
-    fontWeight: "800", 
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  lockSubtitle: { 
-    color: "#D6C9DC",
-    fontSize: 14, 
-    textAlign: "center", 
-    marginBottom: 36, 
-    paddingHorizontal: 32,
-    lineHeight: 20,
-  },
-  lockButton: {
-    backgroundColor: "#B5445A",
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  lockButtonText: { 
-    color: "#fff",
-    fontWeight: "700", 
-    fontSize: 15,
-  },
-});
+const useStyles = makeStyles((t) => ({
+  splash: { alignItems: "center", justifyContent: "center" },
+  splashMark: { width: 76, height: 76, borderRadius: 26, alignItems: "center", justifyContent: "center", ...t.shadowLg },
+  splashTitle: { color: t.text, fontSize: 22, fontWeight: "800", letterSpacing: -0.5, marginTop: 16 },
+  lockOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, elevation: 20 },
+  lockSafe: { flex: 1, justifyContent: "center", alignItems: "center" },
+  lockBox: { alignItems: "center", padding: 24 },
+  lockIconBox: { width: 88, height: 88, borderRadius: 30, justifyContent: "center", alignItems: "center", marginBottom: 26, ...t.shadowLg },
+  miniLock: { position: "absolute", right: -4, bottom: -4, width: 30, height: 30, borderRadius: 15, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: t.bgSolid },
+  lockTitle: { color: t.text, fontSize: 25, fontWeight: "800", marginBottom: 8, letterSpacing: -0.6 },
+  lockSubtitle: { color: t.textSecondary, fontSize: 14.5, textAlign: "center", marginBottom: 34, paddingHorizontal: 28, lineHeight: 21 },
+  lockButton: { height: 54, paddingHorizontal: 34, borderRadius: 18, overflow: "hidden", flexDirection: "row", alignItems: "center", gap: 9 },
+  lockButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+}));

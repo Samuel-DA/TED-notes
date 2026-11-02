@@ -1,14 +1,15 @@
-import Slider from "@react-native-community/slider";
-import { CareCard, CarePage, careStyles } from "@/components/care/CareUI";
-import { palette } from "@/constants/design";
+import { LinearGradient } from "expo-linear-gradient";
+import { CarePage } from "@/components/care/CareUI";
+import { Card, EmptyState, SectionHeader, Segmented } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { db } from "@/firebase";
 import { notifyPartner } from "@/services/notifications";
 import * as Haptics from "expo-haptics";
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
-import { Gauge, Gift, HeartHandshake, Plus, ShoppingBag, Trash2 } from "lucide-react-native";
+import { ArrowUp, Gift, HeartHandshake, Trash2 } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 type NeedItem = { id: string; text: string; createdAt: number };
 type CareProfile = {
@@ -37,6 +38,9 @@ export default function SupportPage() {
   const [needText, setNeedText] = useState("");
   const [otishValue, setOtishValue] = useState(5);
   const [saving, setSaving] = useState(false);
+  const t = useTheme();
+  const styles = useStyles();
+  const [tab, setTab] = useState<"mine" | "partner">("partner");
 
   useEffect(() => {
     if (!pairId) return;
@@ -95,6 +99,11 @@ export default function SupportPage() {
     }
   };
 
+  const confirmRemove = (item: NeedItem) => Alert.alert("Remove this?", `“${item.text}” will be removed from your list.`, [
+    { text: "Cancel", style: "cancel" },
+    { text: "Remove", style: "destructive", onPress: () => void removeNeed(item) },
+  ]);
+
   const removeNeed = async (item: NeedItem) => {
     await saveProfile((mine?.needs || []).filter((need) => need.id !== item.id));
   };
@@ -102,6 +111,7 @@ export default function SupportPage() {
   const saveOtish = async (value: number) => {
     if (!pairId || !uid) return;
     const rounded = Math.round(value);
+    if (rounded === mine?.otish?.value) return;
     setOtishValue(rounded);
     await saveProfile(mine?.needs || [], { value: rounded, updatedAt: serverTimestamp() as unknown as Timestamp });
     void Haptics.selectionAsync();
@@ -115,59 +125,97 @@ export default function SupportPage() {
     });
   };
 
+  const partnerLabel = partnerName || "Partner";
+  const list = tab === "mine" ? mine?.needs || [] : partner?.needs || [];
+  const partnerScore = partner?.otish?.value;
+
   return (
-    <CarePage
-      eyebrow="EMOTIONAL SUPPORT AND NEEDS"
-      title="What do you need?"
-      subtitle={`A practical wish list and a private signal shared with ${partnerName}.`}
-      icon={<HeartHandshake color="#fff" size={23} />}
-    >
-      <CareCard title="My needs and wishes" subtitle="Add gifts, practical things or anything you would appreciate" icon={<ShoppingBag color={palette.rose} size={20} />}>
-        <View style={styles.inputRow}>
-          <TextInput value={needText} onChangeText={setNeedText} onSubmitEditing={addNeed} placeholder="What would make life better?" placeholderTextColor="#9A919F" style={[careStyles.input, styles.input]} returnKeyType="done" />
-          <Pressable accessibilityLabel="Add need" onPress={addNeed} style={styles.addButton}><Plus color="#fff" size={20} /></Pressable>
+    <CarePage eyebrow="SUPPORT AND NEEDS" title="What do you need?" subtitle={`A wish list and a private signal shared with ${partnerLabel}.`} icon={<HeartHandshake color="#fff" size={23} />}>
+      <Card variant="hero" style={styles.signalCard}>
+        <View style={styles.signalTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.eyebrow}>{partnerLabel.toUpperCase()}&apos;S OTISH SIGNAL</Text>
+            <Text style={styles.signalTime}>{formatTimestamp(partner?.otish?.updatedAt)}</Text>
+          </View>
+          <Text style={styles.partnerScore}>{partnerScore ?? "—"}<Text style={styles.outOf}>/10</Text></Text>
         </View>
-        {!mine?.needs.length ? <Text style={styles.empty}>Your list is empty. Add something helpful, comforting or gift-worthy.</Text> : mine.needs.map((item) => (
-          <View key={item.id} style={styles.needRow}><View style={styles.giftIcon}><Gift color={palette.rose} size={16} /></View><Text style={styles.needText}>{item.text}</Text><Pressable accessibilityLabel={`Remove ${item.text}`} onPress={() => removeNeed(item)} style={styles.delete}><Trash2 color="#B97A8C" size={16} /></Pressable></View>
-        ))}
-      </CareCard>
+        <View style={styles.meter}>
+          {Array.from({ length: 10 }).map((_, i) => <View key={i} style={[styles.meterBar, partnerScore && i < partnerScore ? { backgroundColor: t.accent, opacity: 0.45 + (i / 10) * 0.55 } : null]} />)}
+        </View>
+      </Card>
 
-      <CareCard title={`${partnerName}'s needs and wishes`} subtitle="A quiet place to find meaningful gift and support ideas" icon={<Gift color={palette.plum} size={20} />}>
-        {!partner?.needs.length ? <Text style={styles.empty}>{partnerName} has not added anything yet.</Text> : partner.needs.map((item) => (
-          <View key={item.id} style={styles.needRow}><View style={[styles.giftIcon, styles.partnerGift]}><Gift color={palette.plum} size={16} /></View><Text style={styles.needText}>{item.text}</Text></View>
-        ))}
-      </CareCard>
+      <SectionHeader title="How OTISH are you?" />
+      <Card style={styles.mineCard}>
+        <View style={styles.scale}>
+          {Array.from({ length: 10 }).map((_, i) => {
+            const value = i + 1;
+            const active = value === otishValue;
+            const filled = value <= otishValue;
+            return (
+              <Pressable key={value} accessibilityLabel={`Set ${value} out of 10`} onPress={() => void saveOtish(value)} style={({ pressed }) => [styles.dot, filled && { backgroundColor: t.accentSoft, borderColor: "transparent" }, active && styles.dotActive, pressed && { transform: [{ scale: 0.9 }] }]}>
+                {active && <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 12 }]} />}
+                <Text style={[styles.dotText, filled && { color: t.accentText }, active && { color: "#fff" }]}>{value}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.scaleLabels}><Text style={styles.scaleLabel}>Barely</Text><Text style={styles.scaleLabel}>Extremely</Text></View>
+        <Text style={styles.myTime}>{formatTimestamp(mine?.otish?.updatedAt)} · tap a number to share</Text>
+      </Card>
 
-      <CareCard title="How OTISH are you?" subtitle="Move the scale from 1 to 10 — your latest time is saved" icon={<Gauge color={palette.plum} size={20} />}>
-        <View style={styles.scaleValue}><Text style={styles.scaleNumber}>{otishValue}</Text><Text style={styles.scaleOutOf}>/ 10</Text></View>
-        <Slider minimumValue={1} maximumValue={10} step={1} value={otishValue} onValueChange={(value) => setOtishValue(Math.round(value))} onSlidingComplete={saveOtish} minimumTrackTintColor={palette.rose} maximumTrackTintColor="rgba(91,46,117,0.18)" thumbTintColor={palette.rose} />
-        <View style={styles.scaleLabels}><Text style={styles.scaleLabel}>1 · barely</Text><Text style={styles.scaleLabel}>10 · extremely</Text></View>
-        <Text style={styles.timestamp}>{formatTimestamp(mine?.otish?.updatedAt)}</Text>
-        <View style={styles.partnerSignal}><View><Text style={styles.partnerLabel}>{(partnerName ?? "").toUpperCase()}</Text><Text style={styles.partnerTime}>{formatTimestamp(partner?.otish?.updatedAt)}</Text></View><Text style={styles.partnerScore}>{partner?.otish?.value || "—"}<Text style={styles.partnerOutOf}>/10</Text></Text></View>
-      </CareCard>
+      <SectionHeader title="Needs and wishes" />
+      <Segmented value={tab} onChange={setTab} options={[{ value: "partner", label: `${partnerLabel}'s list`, count: partner?.needs.length || 0 }, { value: "mine", label: "My list", count: mine?.needs.length || 0 }]} style={{ marginBottom: 12 }} />
+
+      {tab === "mine" && (
+        <View style={styles.composer}>
+          <TextInput value={needText} onChangeText={setNeedText} onSubmitEditing={addNeed} placeholder="What would make life better?" placeholderTextColor={t.textMuted} selectionColor={t.accent} style={styles.input} returnKeyType="done" maxLength={120} />
+          <Pressable accessibilityLabel="Add to list" onPress={addNeed} disabled={!needText.trim() || saving} style={[styles.add, !needText.trim() && { backgroundColor: t.surfacePressed }]}>
+            {!!needText.trim() && <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
+            <ArrowUp color={needText.trim() ? "#fff" : t.textMuted} size={18} strokeWidth={2.6} />
+          </Pressable>
+        </View>
+      )}
+
+      {list.length === 0 ? (
+        <EmptyState icon={Gift} title={tab === "mine" ? "Your list is empty" : `${partnerLabel} hasn't added anything yet`} body={tab === "mine" ? "Add gifts, practical help or anything comforting. They'll see it here." : "When they do, it's a quiet place to find meaningful ideas."} />
+      ) : (
+        <Card padded={false} style={{ borderRadius: 22 }}>
+          {list.map((item, index) => (
+            <View key={item.id} style={[styles.row, index > 0 && styles.rowBorder]}>
+              <View style={[styles.gift, tab === "partner" && { backgroundColor: t.violetSoft }]}><Gift color={tab === "partner" ? t.violetText : t.accentText} size={16} /></View>
+              <Text style={styles.needText}>{item.text}</Text>
+              {tab === "mine" && <Pressable accessibilityLabel={`Remove ${item.text}`} hitSlop={8} onPress={() => confirmRemove(item)} style={styles.delete}><Trash2 color={t.textMuted} size={15} /></Pressable>}
+            </View>
+          ))}
+        </Card>
+      )}
     </CarePage>
   );
 }
 
-const styles = StyleSheet.create({
-  inputRow: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginBottom: 5 },
-  input: { flex: 1, marginBottom: 0 },
-  addButton: { width: 50, height: 50, borderRadius: 14, backgroundColor: palette.rose, alignItems: "center", justifyContent: "center" },
-  needRow: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(91,46,117,0.12)" },
-  giftIcon: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F3" },
-  partnerGift: { backgroundColor: "#F3EAF6" },
-  needText: { flex: 1, color: palette.text, fontSize: 14.5, fontWeight: "700" },
-  delete: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#FBF2F5" },
-  empty: { color: palette.muted, fontSize: 12.5, lineHeight: 19, paddingVertical: 6 },
-  scaleValue: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", marginVertical: 6 },
-  scaleNumber: { color: palette.rose, fontSize: 54, fontWeight: "900", letterSpacing: -2 },
-  scaleOutOf: { color: palette.muted, fontSize: 16, fontWeight: "900", marginBottom: 9, marginLeft: 4 },
-  scaleLabels: { flexDirection: "row", justifyContent: "space-between", marginTop: 3 },
-  scaleLabel: { color: palette.muted, fontSize: 10, fontWeight: "800" },
-  timestamp: { color: palette.plum, fontSize: 11, fontWeight: "800", textAlign: "center", marginTop: 11 },
-  partnerSignal: { marginTop: 16, minHeight: 68, borderRadius: 14, padding: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(91,46,117,0.09)", borderWidth: 1, borderColor: "rgba(91,46,117,0.12)" },
-  partnerLabel: { color: palette.plum, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
-  partnerTime: { color: palette.muted, fontSize: 10, marginTop: 4 },
-  partnerScore: { color: palette.plum, fontSize: 28, fontWeight: "900" },
-  partnerOutOf: { fontSize: 12, color: palette.muted },
-});
+const useStyles = makeStyles((t) => ({
+  signalCard: { padding: 18, borderRadius: 24 },
+  signalTop: { flexDirection: "row", alignItems: "center" },
+  eyebrow: { color: t.accentText, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },
+  signalTime: { color: t.textSecondary, fontSize: 12.5, marginTop: 4 },
+  partnerScore: { color: t.text, fontSize: 40, fontWeight: "900", letterSpacing: -1.5 },
+  outOf: { color: t.textMuted, fontSize: 16, fontWeight: "700" },
+  meter: { flexDirection: "row", gap: 4, marginTop: 14 },
+  meterBar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: t.surfaceSunken },
+  mineCard: { padding: 16, borderRadius: 22 },
+  scale: { flexDirection: "row", gap: 5 },
+  dot: { flex: 1, aspectRatio: 0.8, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceSunken, borderWidth: 1, borderColor: t.border, overflow: "hidden" },
+  dotActive: { transform: [{ scale: 1.08 }] },
+  dotText: { color: t.textSecondary, fontSize: 14, fontWeight: "800" },
+  scaleLabels: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
+  scaleLabel: { color: t.textMuted, fontSize: 11.5, fontWeight: "700" },
+  myTime: { color: t.textMuted, fontSize: 12, textAlign: "center", marginTop: 12 },
+  composer: { flexDirection: "row", alignItems: "center", gap: 8, padding: 5, paddingLeft: 16, borderRadius: 22, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, marginBottom: 12, ...t.shadow },
+  input: { flex: 1, color: t.text, fontSize: 15.5, minHeight: 44 },
+  add: { width: 42, height: 42, borderRadius: 21, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: t.border },
+  gift: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: t.accentSoft },
+  needText: { flex: 1, color: t.text, fontSize: 15, fontWeight: "600" },
+  delete: { width: 32, height: 32, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+}));

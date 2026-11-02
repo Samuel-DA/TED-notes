@@ -1,133 +1,82 @@
 // app/(auth)/WaitingForPartner.tsx
 import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { signOut } from "firebase/auth";
+import { Check, Copy, Heart, Share2 } from "lucide-react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Pressable, Share, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { Button, ScreenBackground } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { useApp } from "../../context/AppContext";
+import { auth } from "../../firebase";
 
 export default function WaitingForPartner() {
   const router = useRouter();
+  const t = useTheme();
+  const s = useStyles();
   const { pairId, partnerName, loading } = useApp();
-  const [redirected, setRedirected] = useState(false);
-
-  // Pulsing animation
-  const pulse = useState(new Animated.Value(1))[0];
+  const [copied, setCopied] = useState(false);
+  const redirected = useRef(false);
+  const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.2, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
-    ).start();
+    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1600, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
   }, [pulse]);
 
-  // Redirect once partner joins
   useEffect(() => {
-    if (!loading && partnerName && !redirected) {
-      setRedirected(true);
+    if (!loading && partnerName && !redirected.current) {
+      redirected.current = true;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/Home");
     }
-  }, [loading, partnerName, router, redirected]);
+  }, [loading, partnerName, router]);
 
-  const copyCode = async () => {
+  const copy = async () => {
     if (!pairId) return;
     await Clipboard.setStringAsync(pairId);
-    alert("Pair code copied! Share it with your partner.");
+    void Haptics.selectionAsync();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
+  const share = () => pairId && Share.share({ message: `Join me on TED Space 💞 Open the app, choose "Join their space" and paste this code:\n\n${pairId}` });
 
   if (loading || !pairId) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>Loading your space…</Text>
-      </SafeAreaView>
-    );
+    return <ScreenBackground style={{ alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.accent} /></ScreenBackground>;
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.bubble, { transform: [{ scale: pulse }] }]} />
-      <Text style={styles.title}>Waiting for your partner 💞</Text>
-
-      <Text style={styles.subtitle}>
-        Share this code with your partner so they can join:
-      </Text>
-
-      <View style={styles.codeContainer}>
-        <Text selectable style={styles.code}>{pairId}</Text>
+    <AuthShell
+      title="Waiting for your partner"
+      subtitle="Send them this code. You'll both be taken in the moment they join."
+      footer={<Pressable onPress={() => void signOut(auth)} hitSlop={8}><Text style={s.signOut}>Sign out</Text></Pressable>}
+    >
+      <View style={s.pulseWrap}>
+        <Animated.View style={[s.pulse, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.8] }) }] }]} />
+        <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heart}><Heart color="#fff" fill="#fff" size={24} /></LinearGradient>
       </View>
-
-      <TouchableOpacity style={styles.button} onPress={copyCode}>
-        <Text style={styles.buttonText}>Copy / Share Code</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.info}>
-        As soon as your partner joins, you’ll automatically enter your space!
-      </Text>
-    </SafeAreaView>
+      <Text style={s.label}>YOUR INVITE CODE</Text>
+      <Pressable onPress={copy} style={({ pressed }) => [s.code, pressed && { opacity: 0.8 }]}>
+        <Text selectable style={s.codeText} numberOfLines={1} adjustsFontSizeToFit>{pairId}</Text>
+        {copied ? <Check color={t.successText} size={18} /> : <Copy color={t.textMuted} size={18} />}
+      </Pressable>
+      <Text style={s.hint}>{copied ? "Copied" : "Tap the code to copy it"}</Text>
+      <Button title="Share invite" icon={Share2} onPress={share} style={{ marginTop: 14 }} />
+    </AuthShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#16121F",
-    padding: 24,
-  },
-  bubble: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#B5445A",
-    opacity: 0.22,
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#B4A8BA",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  codeContainer: {
-    backgroundColor: "#fff",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    marginBottom: 20,
-  },
-  code: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#5B2E75",
-    letterSpacing: 2,
-    textAlign: "center",
-  },
-  button: {
-    backgroundColor: "#B5445A",
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  info: {
-    color: "#8F8296",
-    fontSize: 14,
-    textAlign: "center",
-    paddingHorizontal: 12,
-  },
-});
+const useStyles = makeStyles((t) => ({
+  pulseWrap: { alignSelf: "center", width: 96, height: 96, alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  pulse: { position: "absolute", width: 64, height: 64, borderRadius: 32, backgroundColor: t.accent },
+  heart: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
+  label: { color: t.textMuted, fontSize: 11, fontWeight: "800", letterSpacing: 1.3, textAlign: "center" },
+  code: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10, paddingHorizontal: 16, minHeight: 58, borderRadius: 18, backgroundColor: t.surfaceSunken, borderWidth: 1.5, borderStyle: "dashed", borderColor: t.borderStrong },
+  codeText: { flex: 1, color: t.text, fontSize: 18, fontWeight: "800", letterSpacing: 0.5, fontVariant: ["tabular-nums"] },
+  hint: { color: t.textMuted, fontSize: 12.5, textAlign: "center", marginTop: 8 },
+  signOut: { color: t.textMuted, fontSize: 14, fontWeight: "700" },
+}));

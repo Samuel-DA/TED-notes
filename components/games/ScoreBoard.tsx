@@ -1,16 +1,15 @@
 import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-} from "react-native";
+  View } from "react-native";
 import { useApp } from "../../context/AppContext";
 import { db } from "../../firebase";
-import { palette } from "@/constants/design";
+
 
 const SCOREBOARD_ID = "global";
 
@@ -20,6 +19,8 @@ interface ScoreboardData {
 }
 
 export default function Scoreboard({ pairId }: { pairId: string | null }) {
+  const t = useTheme();
+  const styles = useStyles();
   const { uid, myName, partnerName } = useApp();
 
   const [scoreboard, setScoreboard] = useState<ScoreboardData | null>(null);
@@ -137,7 +138,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
   if (!pairId || !uid || loading || !scoreboard) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={palette.rose} />
+        <ActivityIndicator size="large" color={t.accentText} />
         <Text style={styles.loadingText}>Loading scoreboard…</Text>
       </View>
     );
@@ -165,7 +166,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
       <Text
         style={[
           styles.leader,
-          maxScore === 0 && { color: "#6b7280" },
+          maxScore === 0 && { color: t.textSecondary },
         ]}
       >
         {leaderMessage}
@@ -179,7 +180,7 @@ export default function Scoreboard({ pairId }: { pairId: string | null }) {
 }
 
 /* ---------------- Styles ---------------- */
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   container: {
     flex: 1,
     paddingHorizontal: 16,
@@ -189,12 +190,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#fff",
+    color: t.text,
     marginBottom: 14,
     textAlign: "center",
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: t.surface,
     borderRadius: 16,
     padding: 18,
     shadowColor: "#000",
@@ -207,17 +208,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: t.border,
   },
   player: {
     fontSize: 18,
     fontWeight: "600",
-    color: palette.text,
+    color: t.text,
   },
   score: {
     fontSize: 20,
     fontWeight: "800",
-    color: palette.rose,
+    color: t.accentText,
   },
   leader: {
     marginTop: 20,
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
   },
   resetBtn: {
     marginTop: 28,
-    backgroundColor: palette.rose,
+    backgroundColor: t.accent,
     padding: 14,
     borderRadius: 14,
     alignItems: "center",
@@ -245,8 +246,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: "#D8C9DF",
+    color: t.textMuted,
     fontWeight: "600",
   },
-  kicker: { color: "#F9A8D4", fontSize: 10, fontWeight: "900", letterSpacing: 1.6, textAlign: "center", marginBottom: 4 },
-});
+  kicker: { color: t.accentText, fontSize: 10, fontWeight: "900", letterSpacing: 1.6, textAlign: "center", marginBottom: 4 },
+}));

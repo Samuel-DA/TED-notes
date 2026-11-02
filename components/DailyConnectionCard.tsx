@@ -1,7 +1,9 @@
-import { Check, Flame, HeartHandshake, UserRound } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Check, Flame, HeartHandshake } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { palette } from "@/constants/design";
+import { Card } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 type Props = {
   checkedIn: boolean;
@@ -12,139 +14,85 @@ type Props = {
   gentle?: boolean;
 };
 
-export default function DailyConnectionCard({
-  checkedIn,
-  partnerCheckedIn,
-  partnerName,
-  streak,
-  onToggle,
-  gentle = false,
-}: Props) {
-  const completeToday = checkedIn && partnerCheckedIn;
+export default function DailyConnectionCard({ checkedIn, partnerCheckedIn, partnerName, streak, onToggle, gentle = false }: Props) {
+  const t = useTheme();
+  const s = useStyles();
+  const complete = checkedIn && partnerCheckedIn;
+  const message = complete ? "Today is complete. See you tomorrow 💞" : checkedIn ? `Waiting for ${partnerName}. The day counts once you've both checked in.` : partnerCheckedIn ? `${partnerName} is here. Check in to complete today.` : "Check in together to keep your streak alive.";
 
   return (
-    <View style={styles.card}>
-      <View style={styles.headingRow}>
-        <View style={styles.iconBox}>
-          <HeartHandshake color={palette.rose} size={24} />
+    <Card variant="hero" style={s.card}>
+      <View style={s.top}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.eyebrow}>DAILY CONNECTION</Text>
+          <Text style={s.title}>{complete ? "You're both here" : "Are you here today?"}</Text>
         </View>
-        <View style={styles.headingText}>
-          <Text style={styles.title}>Daily connection</Text>
-          <Text style={styles.subtitle}>{gentle ? "No pressure — being here counts" : "A shared streak"}</Text>
-        </View>
-        {!gentle && <View style={styles.streakPill}>
-          <Flame color="#f97316" fill="#fb923c" size={17} />
-          <Text style={styles.streakText}>{streak}</Text>
-        </View>}
+        {!gentle && (
+          <View style={s.streak}>
+            <Flame color={t.warning} fill={streak > 0 ? t.warning : "transparent"} size={18} />
+            <Text style={s.streakNumber}>{streak}</Text>
+            <Text style={s.streakLabel}>day{streak === 1 ? "" : "s"}</Text>
+          </View>
+        )}
       </View>
 
-      <View style={styles.connectionFlow}>
-        <View style={styles.personColumn}>
-          <View style={[styles.personBadge, checkedIn && styles.personBadgeDone]}>
-            {checkedIn ? <Check color="#fff" size={17} strokeWidth={3} /> : <UserRound color="#746B7B" size={17} />}
-          </View>
-          <Text style={styles.personLabel}>You</Text>
-          <Text style={styles.personValue}>{checkedIn ? "Checked in" : "Your turn"}</Text>
+      <View style={s.flow}>
+        <Person label="You" done={checkedIn} />
+        <View style={[s.line, checkedIn && { backgroundColor: t.success }]} />
+        <View style={[s.center, complete && { borderColor: "transparent" }]}>
+          {complete && <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 18 }]} />}
+          <HeartHandshake color={complete ? "#fff" : t.textMuted} size={20} />
         </View>
-
-        <View style={styles.connectorWrap}>
-          <View style={[styles.connector, checkedIn && styles.connectorActive]} />
-          <View style={[styles.centerDot, completeToday && styles.centerDotDone]}>
-            <HeartHandshake color={completeToday ? "#fff" : "#9A90A2"} size={17} />
-          </View>
-          <View style={[styles.connector, partnerCheckedIn && styles.connectorActive]} />
-        </View>
-
-        <View style={styles.personColumn}>
-          <View style={[styles.personBadge, partnerCheckedIn && styles.personBadgeDone]}>
-            {partnerCheckedIn ? <Check color="#fff" size={17} strokeWidth={3} /> : <UserRound color="#746B7B" size={17} />}
-          </View>
-          <Text style={styles.personLabel} numberOfLines={1}>{partnerName}</Text>
-          <Text style={styles.personValue}>{partnerCheckedIn ? "Checked in" : "Their turn"}</Text>
-        </View>
+        <View style={[s.line, partnerCheckedIn && { backgroundColor: t.success }]} />
+        <Person label={partnerName || "Partner"} done={partnerCheckedIn} />
       </View>
 
-      <Text style={[styles.ruleText, completeToday && styles.ruleTextDone]}>
-        {completeToday
-          ? "Today is complete"
-          : checkedIn
-            ? `Waiting for ${partnerName}. Both check-ins are needed.`
-            : "Check in individually. The day counts only after you both do it."}
-      </Text>
+      <Text style={[s.message, complete && { color: t.successText, fontWeight: "700" }]}>{message}</Text>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={checkedIn ? "Undo today's check-in" : "Check in for today"}
         onPress={onToggle}
-        style={({ pressed }) => [
-          styles.button,
-          checkedIn && styles.buttonDone,
-          pressed && styles.buttonPressed,
-        ]}
+        style={({ pressed }) => [s.button, checkedIn && s.buttonDone, pressed && { transform: [{ scale: 0.97 }] }]}
       >
-        {checkedIn && <Check color="#fff" size={18} />}
-        <Text style={styles.buttonText}>
-          {checkedIn ? "Checked in — tap to undo" : gentle ? "Mark that I’m here" : "Check in for today"}
-        </Text>
+        {!checkedIn && <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
+        {checkedIn && <Check color={t.successText} size={18} strokeWidth={3} />}
+        <Text style={[s.buttonText, checkedIn && { color: t.successText }]}>{checkedIn ? "Checked in · tap to undo" : gentle ? "I'm here" : "Check in for today"}</Text>
       </Pressable>
+    </Card>
+  );
+}
+
+function Person({ label, done }: { label: string; done: boolean }) {
+  const t = useTheme();
+  const s = useStyles();
+  return (
+    <View style={s.person}>
+      <View style={[s.avatar, done && { backgroundColor: t.success, borderColor: t.success }]}>
+        {done ? <Check color="#fff" size={18} strokeWidth={3} /> : <Text style={s.initial}>{label.charAt(0).toUpperCase()}</Text>}
+      </View>
+      <Text style={s.personLabel} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.13)",
-    borderRadius: 14,
-    marginBottom: 16,
-    padding: 18,
-  },
-  headingRow: { flexDirection: "row", alignItems: "center" },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "rgba(181,68,90,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headingText: { flex: 1, marginLeft: 12 },
-  title: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  subtitle: { color: "rgba(255,255,255,0.62)", fontSize: 13, lineHeight: 18, marginTop: 2 },
-  streakPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#fff7ed",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  streakText: { color: "#c2410c", fontWeight: "900" },
-  connectionFlow: { flexDirection: "row", alignItems: "center", marginTop: 18 },
-  personColumn: { width: 76, alignItems: "center" },
-  personBadge: { width: 38, height: 38, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.13)", alignItems: "center", justifyContent: "center" },
-  personBadgeDone: { backgroundColor: "#059669" },
-  personLabel: { color: "#fff", fontSize: 13, fontWeight: "700", marginTop: 7, maxWidth: 76 },
-  personValue: { color: "rgba(255,255,255,0.56)", fontSize: 11.5, fontWeight: "500", marginTop: 2 },
-  connectorWrap: { flex: 1, flexDirection: "row", alignItems: "center", marginBottom: 27 },
-  connector: { flex: 1, height: 2, backgroundColor: "rgba(255,255,255,0.15)" },
-  connectorActive: { backgroundColor: "#34D399" },
-  centerDot: { width: 34, height: 34, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.13)", alignItems: "center", justifyContent: "center" },
-  centerDotDone: { backgroundColor: palette.rose },
-  ruleText: { color: "rgba(255,255,255,0.62)", fontSize: 12.5, lineHeight: 18, textAlign: "center", marginTop: 12, marginBottom: 12 },
-  ruleTextDone: { color: "#047857", fontWeight: "700" },
-  button: {
-    minHeight: 48,
-    borderRadius: 12,
-    backgroundColor: palette.rose,
-    flexDirection: "row",
-    gap: 7,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonDone: { backgroundColor: "#059669" },
-  buttonPressed: { opacity: 0.78 },
-  buttonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-});
+const useStyles = makeStyles((t) => ({
+  card: { marginBottom: 12, padding: 18, borderRadius: 26 },
+  top: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  eyebrow: { color: t.accentText, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },
+  title: { color: t.text, fontSize: 21, fontWeight: "800", letterSpacing: -0.4, marginTop: 4 },
+  streak: { alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: t.warningSoft },
+  streakNumber: { color: t.text, fontSize: 18, fontWeight: "900", marginTop: 1 },
+  streakLabel: { color: t.warningText, fontSize: 10, fontWeight: "800" },
+  flow: { flexDirection: "row", alignItems: "center", marginTop: 20, paddingHorizontal: 6 },
+  person: { width: 72, alignItems: "center" },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceSunken, borderWidth: 1.5, borderColor: t.borderStrong },
+  initial: { color: t.textSecondary, fontSize: 16, fontWeight: "800" },
+  personLabel: { color: t.text, fontSize: 12.5, fontWeight: "700", marginTop: 7, maxWidth: 72 },
+  line: { flex: 1, height: 2, borderRadius: 1, backgroundColor: t.border, marginBottom: 22 },
+  center: { width: 40, height: 40, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceSunken, borderWidth: 1, borderColor: t.border, marginBottom: 22 },
+  message: { color: t.textSecondary, fontSize: 13.5, lineHeight: 19, textAlign: "center", marginTop: 14, marginBottom: 14, paddingHorizontal: 8 },
+  button: { height: 52, borderRadius: 16, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  buttonDone: { backgroundColor: t.successSoft },
+  buttonText: { color: "#fff", fontSize: 15.5, fontWeight: "800" },
+}));

@@ -1,203 +1,86 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Keyboard,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { PenLine } from "lucide-react-native";
+import React, { useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import { Button, Field, Sheet } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 type Props = {
-  title: string; 
+  title: string;
   note: string;
-  timestamp?: number; 
-  setNote?: (n: string) => void;
-  saveNote?: () => void;
+  timestamp?: number;
+  /** Called with the new text. Drafts stay local until saved, so live updates never clobber typing. */
+  onSave?: (text: string) => Promise<void> | void;
   readOnly?: boolean;
   compact?: boolean;
 };
 
-export default function LoveNote({
-  title,
-  note,
-  timestamp, 
-  setNote,
-  saveNote,
-  readOnly = false,
-  compact = false,
-}: Props) {
-  const [editing, setEditing] = useState(false);
+export const formatNoteTime = (epoch?: number) => {
+  if (!epoch) return "";
+  const target = new Date(epoch);
+  const now = new Date();
+  const days = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime()) / 86400000);
+  const time = target.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (days === 0) return `Today, ${time}`;
+  if (days === 1) return `Yesterday, ${time}`;
+  if (days < 7) return `${days} days ago`;
+  return target.toLocaleDateString([], { day: "numeric", month: "short" });
+};
 
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+export default function LoveNote({ title, note, timestamp, onSave, readOnly = false }: Props) {
+  const t = useTheme();
+  const s = useStyles();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const hasNote = note.trim().length > 0;
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: editing ? 1 : 0,
-        duration: 250,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: editing ? 1 : 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [editing, fadeAnim, slideAnim]);
-
-  // 👑 HUMANIZED RELATIVE TIMESTAMP GENERATOR
-  const formatNoteTime = (epoch?: number) => {
-    if (!epoch) return "";
-
-    const target = new Date(epoch);
-    const now = new Date();
-    
-    // Clear out hours/minutes to get clean calendar day differences
-    const targetDateOnly = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-    const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const diffTime = nowDateOnly.getTime() - targetDateOnly.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    // Format the time snippet (e.g., "10:01 AM")
-    const timeString = target.toLocaleTimeString([], { 
-      hour: "numeric", 
-      minute: "2-digit", 
-      hour12: true 
-    });
-
-    if (diffDays === 0) {
-      return `Today at ${timeString}`;
-    } else if (diffDays === 1) {
-      return `Yesterday at ${timeString}`;
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    } else {
-      // Fallback for notes older than a week
-      return target.toLocaleDateString([], { month: "short", day: "numeric" });
-    }
+  const startEdit = () => { setDraft(note); setOpen(true); };
+  const save = async () => {
+    setSaving(true);
+    try { await onSave?.(draft.trim()); setOpen(false); } finally { setSaving(false); }
   };
 
   return (
-    <View style={[styles.card, compact && styles.cardCompact]}>
-      <View style={[styles.headerContainerRow, compact && styles.headerCompact]}>
-        <Text numberOfLines={compact ? 2 : undefined} style={[styles.title, compact && styles.titleCompact]}>{title}</Text>
-        
-        {/* Render relative display line */}
-        {timestamp && note.trim() !== "" && (
-          <Text numberOfLines={1} style={[styles.timestampText, compact && styles.timestampCompact]}>{formatNoteTime(timestamp)}</Text>
-        )}
+    <Pressable
+      accessibilityRole="button"
+      onPress={readOnly ? () => hasNote && setOpen(true) : startEdit}
+      style={({ pressed }) => [s.card, readOnly && hasNote && s.cardReceived, pressed && { transform: [{ scale: 0.98 }] }]}
+    >
+      <View style={s.head}>
+        <Text style={[s.title, readOnly && hasNote && { color: t.accentText }]} numberOfLines={1}>{title}</Text>
+        {!readOnly && <PenLine color={t.textMuted} size={14} />}
       </View>
+      <Text style={[s.body, !hasNote && s.placeholder]} numberOfLines={5}>
+        {hasNote ? note : readOnly ? "No note yet 💭" : "Leave them something sweet…"}
+      </Text>
+      {!!timestamp && hasNote && <Text style={s.time}>{formatNoteTime(timestamp)}</Text>}
 
-      {!editing && (
-        <>
-          <Text numberOfLines={compact ? 5 : undefined} style={[styles.text, compact && styles.textCompact]}>
-            {note || (readOnly ? "No note yet 💭" : "Write something…")}
-          </Text>
-
-          {!readOnly && (
-            <TouchableOpacity onPress={() => setEditing(true)}>
-              <Text style={styles.editBtn}>Edit</Text>
-            </TouchableOpacity>
-          )}
-        </>
-      )}
-
-      {!readOnly && editing && (
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateY: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [16, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            multiline
-            placeholder="Write something meaningful…"
-            placeholderTextColor="#9ca3af"
-            style={styles.input}
-            autoFocus
-          />
-
-          <TouchableOpacity
-            style={styles.saveBtn}
-            onPress={() => {
-              saveNote?.();
-              setEditing(false);
-              Keyboard.dismiss();
-            }}
-          >
-            <Text style={styles.saveText}>Save</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
-    </View>
+      <Sheet visible={open} onClose={() => setOpen(false)} eyebrow={readOnly ? "LOVE NOTE" : "YOUR NOTE"} title={title}>
+        {readOnly ? (
+          <>
+            <Text style={s.full}>{note}</Text>
+            {!!timestamp && <Text style={[s.time, { marginTop: 12 }]}>{formatNoteTime(timestamp)}</Text>}
+          </>
+        ) : (
+          <>
+            <Field value={draft} onChangeText={setDraft} multiline autoFocus placeholder="Write something meaningful…" maxLength={500} inputStyle={{ minHeight: 140 }} />
+            <Text style={s.count}>{draft.length}/500</Text>
+            <Button title="Save note" onPress={save} loading={saving} style={{ marginTop: 10 }} />
+          </>
+        )}
+      </Sheet>
+    </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.13)",
-    borderRadius: 14,
-    padding: 20,
-    marginBottom: 14,
-  },
-  cardCompact: { padding: 14, marginBottom: 0, minHeight: 168 },
-  headerContainerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerCompact: { alignItems: "flex-start", flexDirection: "column" },
-  title: { 
-    fontSize: 18, 
-    fontWeight: "700", 
-    color: "#fff",
-    flex: 1,
-  },
-  titleCompact: { fontSize: 15.5 },
-  timestampText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.52)",
-    marginLeft: 8,
-  },
-  timestampCompact: { marginLeft: 0, marginTop: 3, fontSize: 10.5 },
-  text: { marginTop: 8, color: "rgba(255,255,255,0.76)", fontSize: 15, lineHeight: 22 },
-  textCompact: { fontSize: 13.5, lineHeight: 20 },
-  editBtn: { marginTop: 10, color: "#F0B9C4", fontWeight: "700" },
-  input: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#111827",
-    lineHeight: 22,
-    backgroundColor: "#f9fafb",
-    borderRadius: 12,
-    padding: 12,
-    maxHeight: 140,
-  },
-  saveBtn: {
-    marginTop: 12,
-    alignSelf: "flex-end",
-    backgroundColor: "#B5445A",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  saveText: { color: "#fff", fontWeight: "700" },
-});
+const useStyles = makeStyles((t) => ({
+  card: { flex: 1, minHeight: 156, padding: 15, borderRadius: 22, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, ...t.shadow },
+  cardReceived: { backgroundColor: t.accentSoft, borderColor: "transparent" },
+  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  title: { color: t.text, fontSize: 14, fontWeight: "800", flex: 1 },
+  body: { color: t.text, fontSize: 14, lineHeight: 20, marginTop: 8, flex: 1 },
+  placeholder: { color: t.textMuted, fontStyle: "italic" },
+  time: { color: t.textMuted, fontSize: 11, fontWeight: "600", marginTop: 8 },
+  full: { color: t.text, fontSize: 18, lineHeight: 27, fontWeight: "500" },
+  count: { color: t.textMuted, fontSize: 11.5, textAlign: "right", marginTop: -6 },
+}));

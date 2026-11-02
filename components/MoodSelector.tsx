@@ -1,5 +1,9 @@
-import React, { useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, type TextInputInstance } from "react-native";
+import * as Haptics from "expo-haptics";
+import { Keyboard as KeyboardIcon } from "lucide-react-native";
+import React, { useRef, useState } from "react";
+import { Pressable, Text, TextInput, View, type TextInputInstance } from "react-native";
+import { Card, Sheet } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 type Props = {
   yourMood: string;
@@ -9,145 +13,80 @@ type Props = {
   partnerLabel?: string;
 };
 
-export default function MoodSelector({
-  yourMood,
-  setYourMood,
-  partnerMood,
-  yourLabel = "Your Mood",
-  partnerLabel = "Partner's Mood",
-}: Omit<Props, "MOODS">) {
-  const hiddenInputRef = useRef<TextInputInstance>(null);
+const MOODS = [
+  { emoji: "😊", label: "Happy" }, { emoji: "🥰", label: "Loved" }, { emoji: "😌", label: "Calm" }, { emoji: "🤩", label: "Excited" },
+  { emoji: "😴", label: "Tired" }, { emoji: "🥺", label: "Need a hug" }, { emoji: "😔", label: "Low" }, { emoji: "😤", label: "Stressed" },
+  { emoji: "🤒", label: "Unwell" }, { emoji: "😰", label: "Anxious" }, { emoji: "🙏", label: "Grateful" }, { emoji: "💪", label: "Motivated" },
+];
+const labelFor = (emoji: string) => MOODS.find((m) => m.emoji === emoji)?.label;
 
-  const handleOpenKeyboard = () => {
-    hiddenInputRef.current?.focus();
-  };
+export default function MoodSelector({ yourMood, setYourMood, partnerMood, partnerLabel = "Partner" }: Props) {
+  const t = useTheme();
+  const s = useStyles();
+  const [open, setOpen] = useState(false);
+  const hiddenInput = useRef<TextInputInstance>(null);
 
-  const handleEmojiSelected = (text: string) => {
-    if (text.length > 0) {
-      const charArray = Array.from(text);
-      const lastChar = charArray[charArray.length - 1];
-      setYourMood(lastChar);
-    }
-  };
+  const choose = (emoji: string) => { void Haptics.selectionAsync(); setYourMood(emoji); setOpen(false); };
+  const onKeyboardEmoji = (text: string) => { const chars = Array.from(text); if (chars.length) choose(chars[chars.length - 1]); };
 
   return (
-    <View style={styles.card}>
-      {/* Hidden input to receive keyboard emoji selections */}
-      <TextInput
-        ref={hiddenInputRef}
-        value={yourMood}
-        onChangeText={handleEmojiSelected}
-        showSoftInputOnFocus={true}
-        style={styles.hiddenInput}
-        caretHidden={true}
-      />
-
-      {/* PARTNER'S MOOD - MAIN FOCUS */}
-      <Text style={styles.cardTitle}>{partnerLabel}</Text>
-      
-      <View style={styles.centerContainer}>
-        <View style={styles.bigMoodBubble}>
-          {/* 👑 Show empty thought cloud if partner's status has expired */}
-          <Text style={styles.bigMoodEmoji}>{partnerMood ? partnerMood : "💭"}</Text>
+    <Card style={s.card}>
+      <TextInput ref={hiddenInput} value="" onChangeText={onKeyboardEmoji} style={s.hidden} caretHidden />
+      <Text style={s.eyebrow}>HOW YOU&apos;RE BOTH FEELING</Text>
+      <View style={s.row}>
+        <View style={s.side}>
+          <View style={[s.bubble, s.bubblePartner]}><Text style={s.bigEmoji}>{partnerMood || "💭"}</Text></View>
+          <Text style={s.name} numberOfLines={1}>{partnerLabel}</Text>
+          <Text style={s.state} numberOfLines={1}>{partnerMood ? labelFor(partnerMood) ?? "Shared a mood" : "Not set today"}</Text>
         </View>
+        <View style={s.divider} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Set your mood" onPress={() => setOpen(true)} style={({ pressed }) => [s.side, pressed && { opacity: 0.7 }]}>
+          <View style={[s.bubble, !yourMood && s.bubbleEmpty]}><Text style={yourMood ? s.bigEmoji : s.plus}>{yourMood || "+"}</Text></View>
+          <Text style={s.name}>You</Text>
+          <Text style={[s.state, { color: t.accentText }]}>{yourMood ? "Tap to change" : "Set your mood"}</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.divider} />
-
-      {/* YOUR MOOD - TAP TO CHANGE CONTROL */}
-      <View style={styles.bottomRow}>
-        <Text style={styles.cardHint}>{yourLabel}:</Text>
-        <TouchableOpacity 
-          onPress={handleOpenKeyboard} 
-          style={styles.myMoodTrigger}
-          activeOpacity={0.7}
-        >
-          {/* 👑 Show an add symbol if your status has expired */}
-          <Text style={styles.myMoodEmoji}>{yourMood ? yourMood : "➕"}</Text>
-          <Text style={styles.changeText}>
-            {yourMood ? "Tap to change" : "Set status"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Sheet visible={open} onClose={() => setOpen(false)} eyebrow="YOUR MOOD" title="How are you feeling?">
+        <View style={s.grid}>
+          {MOODS.map((mood) => {
+            const active = yourMood === mood.emoji;
+            return (
+              <Pressable key={mood.emoji} onPress={() => choose(mood.emoji)} style={({ pressed }) => [s.option, active && s.optionActive, pressed && { transform: [{ scale: 0.95 }] }]}>
+                <Text style={s.optionEmoji}>{mood.emoji}</Text>
+                <Text style={[s.optionLabel, active && { color: t.accentText }]} numberOfLines={1}>{mood.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable onPress={() => { setOpen(false); setTimeout(() => hiddenInput.current?.focus(), 350); }} style={s.more}>
+          <KeyboardIcon color={t.textSecondary} size={16} />
+          <Text style={s.moreText}>Pick any emoji from the keyboard</Text>
+        </Pressable>
+      </Sheet>
+    </Card>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "transparent", // Clean container mapping overrides
-    width: "100%",
-  },
-  cardTitle: { 
-    fontSize: 14, 
-    fontWeight: "700", 
-    color: "#766D80",
-    textAlign: "center",
-    letterSpacing: -0.1,
-  },
-  centerContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginVertical: 14,
-  },
-  bigMoodBubble: {
-    width: 84,
-    height: 84,
-    borderRadius: 24,
-    backgroundColor: "#FFF3F5",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#F2DDE2",
-    shadowColor: "#B5445A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  bigMoodEmoji: { 
-    fontSize: 48 
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#f1f5f9",
-    width: "100%",
-    marginBottom: 14,
-  },
-  bottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  cardHint: { 
-    fontSize: 15, 
-    color: "#B5445A",
-    fontWeight: "600",
-  },
-  myMoodTrigger: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f3f4f6",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    gap: 6,
-  },
-  myMoodEmoji: {
-    fontSize: 20,
-  },
-  changeText: {
-    fontSize: 13,
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-  hiddenInput: {
-    position: "absolute",
-    width: 0,
-    height: 0,
-    opacity: 0,
-  },
-});
+const useStyles = makeStyles((t) => ({
+  card: { marginBottom: 12, paddingVertical: 18 },
+  hidden: { position: "absolute", width: 1, height: 1, opacity: 0 },
+  eyebrow: { color: t.textMuted, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, textAlign: "center" },
+  row: { flexDirection: "row", alignItems: "center", marginTop: 16 },
+  side: { flex: 1, alignItems: "center" },
+  divider: { width: 1, height: 70, backgroundColor: t.border },
+  bubble: { width: 76, height: 76, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceSunken, borderWidth: 1, borderColor: t.border },
+  bubblePartner: { backgroundColor: t.accentSoft, borderColor: "transparent" },
+  bubbleEmpty: { borderStyle: "dashed", borderColor: t.borderStrong, borderWidth: 1.5 },
+  bigEmoji: { fontSize: 42 },
+  plus: { fontSize: 30, color: t.textMuted, fontWeight: "300" },
+  name: { color: t.text, fontSize: 14.5, fontWeight: "800", marginTop: 10 },
+  state: { color: t.textMuted, fontSize: 12, fontWeight: "600", marginTop: 2 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  option: { width: "23%", flexGrow: 1, aspectRatio: 0.95, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: t.surfaceSunken, borderWidth: 1, borderColor: t.border },
+  optionActive: { backgroundColor: t.accentSoft, borderColor: t.accent },
+  optionEmoji: { fontSize: 30 },
+  optionLabel: { color: t.textSecondary, fontSize: 11, fontWeight: "700" },
+  more: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 14, paddingVertical: 12 },
+  moreText: { color: t.textSecondary, fontSize: 13.5, fontWeight: "700" },
+}));

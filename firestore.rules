@@ -175,18 +175,28 @@ service cloud.firestore {
       }
 
       match /todos/{todoId} {
+        function validPlanMeta(data) {
+          return (!("category" in data) || data.category == null
+              || (data.category is string && data.category.size() <= 24))
+            && (!("dueDate" in data) || data.dueDate == null
+              || (data.dueDate is string && data.dueDate.size() == 10));
+        }
+
         allow read: if isPairMember(pairId);
         allow create: if isPairMember(pairId)
           && request.resource.data.keys().hasOnly([
-            "text", "completed", "order", "createdAt"
+            "text", "completed", "order", "createdAt", "createdBy", "category", "dueDate"
           ])
           && request.resource.data.text is string
           && request.resource.data.completed is bool
           && request.resource.data.order is number
-          && request.resource.data.createdAt is timestamp;
+          && request.resource.data.createdAt is timestamp
+          && (!("createdBy" in request.resource.data) || request.resource.data.createdBy == request.auth.uid)
+          && validPlanMeta(request.resource.data);
         allow update: if isPairMember(pairId)
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(["text", "completed", "order"]);
+            .hasOnly(["text", "completed", "order", "category", "dueDate"])
+          && validPlanMeta(request.resource.data);
         allow delete: if isPairMember(pairId);
       }
 

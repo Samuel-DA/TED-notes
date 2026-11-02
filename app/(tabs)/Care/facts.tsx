@@ -1,11 +1,16 @@
-import { BookOpen, Church, ExternalLink, Landmark, RefreshCw, ScrollText } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { CareCard, CarePage, careStyles } from "@/components/care/CareUI";
-import { palette } from "@/constants/design";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { Bookmark, BookOpen, Church, ExternalLink, Landmark, Layers, ScrollText, Share2, Shuffle, Sparkles } from "lucide-react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FlatList, Linking, Pressable, ScrollView, Share, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { CarePage } from "@/components/care/CareUI";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 type Category = "Christianity" | "Politics" | "History";
+type Filter = "All" | Category | "Saved";
 type Fact = { title: string; extract: string; url: string; kind?: "Quick teaching" | "Did you know?" };
+type Card = Fact & { id: string; category: Category };
 
 const FACTS: Record<Category, Fact[]> = {
   Christianity: [
@@ -46,73 +51,252 @@ const FACTS: Record<Category, Fact[]> = {
   ],
 };
 
-const CATEGORIES: { name: Category; icon: React.ComponentType<{ color: string; size: number }> }[] = [
-  { name: "Christianity", icon: Church },
-  { name: "Politics", icon: Landmark },
-  { name: "History", icon: ScrollText },
-];
+const THEMES: Record<Category, { icon: React.ComponentType<{ color: string; size: number }>; colors: readonly [string, string, string]; accent: string }> = {
+  Christianity: { icon: Church, colors: ["#6B2F7E", "#A63E64", "#C9566E"], accent: "#FFD2DD" },
+  Politics: { icon: Landmark, colors: ["#1F2F6B", "#3B3A8F", "#5A3F95"], accent: "#CFD9FF" },
+  History: { icon: ScrollText, colors: ["#6E3F12", "#8A4B2A", "#5B2E75"], accent: "#FFE1B8" },
+};
+const FILTERS: Filter[] = ["All", "Christianity", "Politics", "History", "Saved"];
+const ALL_CARDS: Card[] = (Object.keys(FACTS) as Category[]).flatMap((category) => FACTS[category].map((fact) => ({ ...fact, category, id: `${category}:${fact.title}` })));
+const SAVED_KEY = "ted-facts-saved-v1";
+const SEEN_KEY = "ted-facts-seen-v1";
+const GAP = 12;
+const randomOther = (count: number, avoid: number) => { let next = avoid; while (next === avoid) next = Math.floor(Math.random() * count); return next; };
+type ViewableInfo = Parameters<NonNullable<React.ComponentProps<typeof FlatList>["onViewableItemsChanged"]>>[0];
+
+const domainOf = (url: string) => url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+const dayIndex = () => { const now = new Date(); return Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 86400000); };
+
+const readSet = async (key: string) => { try { const raw = await AsyncStorage.getItem(key); return new Set<string>(raw ? JSON.parse(raw) : []); } catch { return new Set<string>(); } };
+const writeSet = (key: string, value: Set<string>) => { AsyncStorage.setItem(key, JSON.stringify([...value])).catch(() => undefined); };
 
 export default function FactsPage() {
-  const [category, setCategory] = useState<Category>("Christianity");
-  const [factIndex, setFactIndex] = useState(0);
-  const fact = FACTS[category][factIndex];
-  const countLabel = useMemo(() => `${FACTS[category].length} curated cards`, [category]);
+  const t = useTheme();
+  const styles = useStyles();
+  const { width } = useWindowDimensions();
+  const cardWidth = width - 32;
+  const listRef = useRef<FlatList<Card>>(null);
+  const [filter, setFilter] = useState<Filter>("All");
+  const [index, setIndex] = useState(0);
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [seen, setSeen] = useState<Set<string>>(new Set());
 
-  const selectCategory = (nextCategory: Category) => {
-    setCategory(nextCategory);
-    setFactIndex(0);
+  useEffect(() => { void readSet(SAVED_KEY).then(setSaved); void readSet(SEEN_KEY).then(setSeen); }, []);
+
+  const todays = useMemo(() => ALL_CARDS[dayIndex() % ALL_CARDS.length], []);
+  const cards = useMemo(() => {
+    if (filter === "All") return ALL_CARDS;
+    if (filter === "Saved") return ALL_CARDS.filter((card) => saved.has(card.id));
+    return ALL_CARDS.filter((card) => card.category === filter);
+  }, [filter, saved]);
+
+  const markSeen = useCallback((id: string) => {
+    setSeen((current) => {
+      if (current.has(id)) return current;
+      const next = new Set(current).add(id);
+      writeSet(SEEN_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const onViewable = useRef(({ viewableItems }: ViewableInfo) => {
+    const first = viewableItems[0];
+    if (first?.index != null) { setIndex(first.index); if (first.item) markSeen((first.item as Card).id); }
+  }).current;
+
+  const selectFilter = (next: Filter) => {
+    void Haptics.selectionAsync();
+    setFilter(next);
+    setIndex(0);
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
   };
 
-  const showAnother = () => {
-    const total = FACTS[category].length;
-    setFactIndex((current) => (current + 1 + Math.floor(Math.random() * (total - 1))) % total);
+  const jumpTo = (target: number, animated = true) => {
+    if (target < 0 || target >= cards.length) return;
+    listRef.current?.scrollToOffset({ offset: target * (cardWidth + GAP), animated });
+    setIndex(target);
   };
+
+  const shuffle = () => {
+    if (cards.length < 2) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    jumpTo(randomOther(cards.length, index));
+  };
+
+  const toggleSave = (card: Card) => {
+    void Haptics.selectionAsync();
+    setSaved((current) => {
+      const next = new Set(current);
+      if (next.has(card.id)) next.delete(card.id); else next.add(card.id);
+      writeSet(SAVED_KEY, next);
+      return next;
+    });
+  };
+
+  const share = (card: Card) => { void Share.share({ message: `${card.title}\n\n${card.extract}\n\nSource: ${card.url}` }); };
+
+  const openToday = () => {
+    const nextFilter: Filter = todays.category;
+    setFilter(nextFilter);
+    const target = ALL_CARDS.filter((card) => card.category === nextFilter).findIndex((card) => card.id === todays.id);
+    markSeen(todays.id);
+    requestAnimationFrame(() => setTimeout(() => jumpTo(Math.max(0, target), false), 50));
+  };
+
+  const todaysTheme = THEMES[todays.category];
+  const TodayIcon = todaysTheme.icon;
+  const progress = cards.length ? (index + 1) / cards.length : 0;
 
   return (
-    <CarePage eyebrow="DISCOVER" title="Knowledge & facts" subtitle="Learn something short, thoughtful and worth discussing." icon={<BookOpen color="#fff" size={23} />}>
-      <View style={styles.categories}>
-        {CATEGORIES.map(({ name, icon: Icon }) => (
-          <Pressable key={name} onPress={() => selectCategory(name)} style={[styles.chip, category === name && styles.chipActive]}>
-            <Icon color={category === name ? "#fff" : palette.plum} size={16} />
-            <Text numberOfLines={1} style={[styles.chipText, category === name && styles.chipTextActive]}>{name}</Text>
-          </Pressable>
-        ))}
+    <CarePage eyebrow="DISCOVER" title="Knowledge & facts" subtitle="Short, thoughtful cards worth talking about." icon={<BookOpen color="#fff" size={23} />}>
+      {/* Today's card */}
+      <Pressable onPress={openToday} style={({ pressed }) => [styles.today, pressed && styles.pressed]}>
+        <LinearGradient colors={todaysTheme.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={styles.todayWatermark}><TodayIcon color="rgba(255,255,255,0.10)" size={120} /></View>
+        <View style={styles.todayBadge}><Sparkles color="#fff" size={12} /><Text style={styles.todayBadgeText}>TODAY&apos;S CARD</Text></View>
+        <Text style={styles.todayTitle} numberOfLines={2}>{todays.title}</Text>
+        <Text style={styles.todayText} numberOfLines={2}>{todays.extract}</Text>
+        <Text style={[styles.todayCta, { color: todaysTheme.accent }]}>Read card →</Text>
+      </Pressable>
+
+      {/* Explored */}
+      <View style={styles.explored}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.exploredText}><Text style={styles.exploredStrong}>{seen.size}</Text> of {ALL_CARDS.length} cards explored</Text>
+          <View style={styles.exploredTrack}><View style={[styles.exploredFill, { width: `${(seen.size / ALL_CARDS.length) * 100}%` }]} /></View>
+        </View>
+        <View style={styles.savedPill}><Bookmark color={t.accentText} size={13} fill={t.accentText} /><Text style={styles.savedPillText}>{saved.size}</Text></View>
       </View>
 
-      <CareCard title={category} subtitle={countLabel}>
-        <View style={styles.art}>
-          <Text style={styles.watermark}>{category === "Christianity" ? "✝" : category === "Politics" ? "⚖" : "⌛"}</Text>
-          <Text style={styles.kicker}>{fact.kind || "Did you know?"}</Text>
+      {/* Filters */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll} contentContainerStyle={styles.filters}>
+        {FILTERS.map((item) => {
+          const active = filter === item;
+          const Icon = item === "All" ? Layers : item === "Saved" ? Bookmark : THEMES[item].icon;
+          return (
+            <Pressable key={item} onPress={() => selectFilter(item)} style={[styles.filter, active && styles.filterActive]}>
+              <Icon color={active ? t.onInverse : t.textSecondary} size={14} />
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>{item}{item === "Saved" && saved.size ? ` · ${saved.size}` : ""}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Deck */}
+      {cards.length ? (
+        <FlatList
+          ref={listRef}
+          data={cards}
+          keyExtractor={(card) => card.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={cardWidth + GAP}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          ItemSeparatorComponent={() => <View style={{ width: GAP }} />}
+          onViewableItemsChanged={onViewable}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          getItemLayout={(_, i) => ({ length: cardWidth + GAP, offset: (cardWidth + GAP) * i, index: i })}
+          renderItem={({ item }) => <FactCard card={item} width={cardWidth} saved={saved.has(item.id)} onSave={() => toggleSave(item)} onShare={() => share(item)} />}
+        />
+      ) : (
+        <View style={styles.empty}>
+          <Bookmark color={t.textMuted} size={28} />
+          <Text style={styles.emptyTitle}>No saved cards yet</Text>
+          <Text style={styles.emptyText}>Tap the bookmark on any card to keep it here.</Text>
         </View>
-        <Text style={styles.factTitle}>{fact.title}</Text>
-        <Text style={styles.factText}>{fact.extract}</Text>
-        <View style={styles.actions}>
-          <Pressable onPress={showAnother} style={[careStyles.primaryButton, { flex: 1 }]}>
-            <RefreshCw color="#fff" size={17} />
-            <Text style={careStyles.primaryText}>Another card</Text>
-          </Pressable>
-          <Pressable accessibilityLabel="Open source" onPress={() => Linking.openURL(fact.url)} style={styles.source}>
-            <ExternalLink color={palette.plum} size={18} />
+      )}
+
+      {/* Deck controls */}
+      {cards.length > 0 && (
+        <View style={styles.controls}>
+          <Text style={styles.counter}>{index + 1}<Text style={styles.counterTotal}> / {cards.length}</Text></Text>
+          <View style={styles.deckTrack}><View style={[styles.deckFill, { width: `${progress * 100}%` }]} /></View>
+          <Pressable accessibilityLabel="Shuffle" onPress={shuffle} style={({ pressed }) => [styles.shuffle, pressed && styles.pressed]}>
+            <Shuffle color={t.text} size={16} />
+            <Text style={styles.shuffleText}>Shuffle</Text>
           </Pressable>
         </View>
-      </CareCard>
+      )}
+
       <Text style={styles.note}>Christian content is Bible-centred. Politics cards focus on civic knowledge, not party persuasion. Open the source for wider context.</Text>
     </CarePage>
   );
 }
 
-const styles = StyleSheet.create({
-  categories: { flexDirection: "row", gap: 7, marginBottom: 14 },
-  chip: { flex: 1, minHeight: 46, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.74)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.6)", paddingHorizontal: 5 },
-  chipActive: { backgroundColor: "rgba(91,46,117,0.9)", borderColor: "rgba(255,255,255,0.24)" },
-  chipText: { color: palette.plum, fontSize: 11, fontWeight: "700" },
-  chipTextActive: { color: "#fff" },
-  art: { minHeight: 94, borderRadius: 13, backgroundColor: "rgba(33,23,42,0.94)", overflow: "hidden", padding: 16, justifyContent: "flex-end", marginBottom: 18 },
-  watermark: { position: "absolute", right: 14, top: -23, color: "rgba(255,255,255,0.09)", fontSize: 106, fontWeight: "900" },
-  kicker: { color: "#F0B9C4", fontSize: 10, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase" },
-  factTitle: { color: palette.text, fontSize: 23, fontWeight: "700", letterSpacing: -0.5 },
-  factText: { color: palette.muted, fontSize: 14, lineHeight: 22, marginTop: 9 },
-  actions: { flexDirection: "row", gap: 9, marginTop: 18 },
-  source: { width: 50, height: 50, borderRadius: 12, backgroundColor: "#F1E7F2", alignItems: "center", justifyContent: "center" },
-  note: { color: "#DED2E2", fontSize: 10.5, lineHeight: 16, paddingHorizontal: 8, textAlign: "center" },
-});
+function FactCard({ card, width, saved, onSave, onShare }: { card: Card; width: number; saved: boolean; onSave: () => void; onShare: () => void }) {
+  const styles = useStyles();
+  const theme = THEMES[card.category];
+  const Icon = theme.icon;
+  return (
+    <View style={[styles.card, { width }]}>
+      <LinearGradient colors={theme.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={["transparent", "rgba(10,6,14,0.35)"]} style={StyleSheet.absoluteFill} />
+      <View style={styles.cardWatermark}><Icon color="rgba(255,255,255,0.08)" size={190} /></View>
+      <View style={styles.cardTop}>
+        <View style={styles.categoryBadge}><Icon color="#fff" size={13} /><Text style={styles.categoryText}>{card.category}</Text></View>
+        <Text style={[styles.kind, { color: theme.accent }]}>{(card.kind || "Did you know?").toUpperCase()}</Text>
+      </View>
+      <Text style={styles.cardTitle}>{card.title}</Text>
+      <Text style={styles.cardText}>{card.extract}</Text>
+      <View style={styles.cardFooter}>
+        <Pressable onPress={() => Linking.openURL(card.url)} style={styles.sourceLink} hitSlop={6}>
+          <ExternalLink color="rgba(255,255,255,0.8)" size={13} />
+          <Text style={styles.sourceText} numberOfLines={1}>{domainOf(card.url)}</Text>
+        </Pressable>
+        <Pressable accessibilityLabel="Share card" onPress={onShare} style={styles.iconButton}><Share2 color="#fff" size={17} /></Pressable>
+        <Pressable accessibilityLabel={saved ? "Remove from saved" : "Save card"} onPress={onSave} style={[styles.iconButton, saved && styles.iconButtonActive]}>
+          <Bookmark color={saved ? "#1B1320" : "#fff"} fill={saved ? "#1B1320" : "transparent"} size={17} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const useStyles = makeStyles((t) => ({
+  pressed: { transform: [{ scale: 0.98 }], opacity: 0.92 },
+  today: { borderRadius: 24, padding: 18, overflow: "hidden", marginBottom: 12, minHeight: 150 },
+  todayWatermark: { position: "absolute", right: -18, top: -14 },
+  todayBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)" },
+  todayBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
+  todayTitle: { color: "#fff", fontSize: 21, fontWeight: "800", letterSpacing: -0.4, marginTop: 12, maxWidth: "88%" },
+  todayText: { color: "rgba(255,255,255,0.78)", fontSize: 13.5, lineHeight: 19, marginTop: 6 },
+  todayCta: { fontSize: 13, fontWeight: "800", marginTop: 10 },
+  explored: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 4, marginBottom: 14 },
+  exploredText: { color: t.textSecondary, fontSize: 12.5 },
+  exploredStrong: { color: t.text, fontWeight: "800" },
+  exploredTrack: { height: 4, borderRadius: 2, backgroundColor: t.surfaceSunken, marginTop: 7, overflow: "hidden" },
+  exploredFill: { height: 4, borderRadius: 2, backgroundColor: t.accent },
+  savedPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: t.surfaceSunken },
+  savedPillText: { color: t.text, fontSize: 12, fontWeight: "800" },
+  filtersScroll: { marginHorizontal: -16, marginBottom: 14 },
+  filters: { gap: 8, paddingHorizontal: 16 },
+  filter: { flexDirection: "row", alignItems: "center", gap: 6, height: 38, paddingHorizontal: 14, borderRadius: 999, backgroundColor: t.surfaceSunken, borderWidth: 1, borderColor: t.border },
+  filterActive: { backgroundColor: t.inverse, borderColor: t.inverse },
+  filterText: { color: t.textSecondary, fontSize: 13, fontWeight: "700" },
+  filterTextActive: { color: t.onInverse },
+  card: { minHeight: 410, borderRadius: 28, padding: 20, overflow: "hidden" },
+  cardWatermark: { position: "absolute", right: -40, top: -30 },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  categoryBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.16)" },
+  categoryText: { color: "#fff", fontSize: 11.5, fontWeight: "700" },
+  kind: { fontSize: 10, fontWeight: "800", letterSpacing: 1.2 },
+  cardTitle: { color: "#fff", fontSize: 26, lineHeight: 31, fontWeight: "800", letterSpacing: -0.6, marginTop: 36 },
+  cardText: { color: "rgba(255,255,255,0.86)", fontSize: 15, lineHeight: 23, marginTop: 12, flex: 1 },
+  cardFooter: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 18 },
+  sourceLink: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  sourceText: { color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: "600", flexShrink: 1 },
+  iconButton: { width: 42, height: 42, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
+  iconButtonActive: { backgroundColor: "#fff" },
+  controls: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 14, marginBottom: 18 },
+  counter: { color: t.text, fontSize: 15, fontWeight: "800", minWidth: 52 },
+  counterTotal: { color: t.textMuted, fontWeight: "600" },
+  deckTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: t.surfaceSunken, overflow: "hidden" },
+  deckFill: { height: 4, borderRadius: 2, backgroundColor: t.inverse },
+  shuffle: { flexDirection: "row", alignItems: "center", gap: 6, height: 38, paddingHorizontal: 14, borderRadius: 999, backgroundColor: t.surfaceSunken, borderWidth: 1, borderColor: t.border },
+  shuffleText: { color: t.text, fontSize: 13, fontWeight: "700" },
+  empty: { minHeight: 260, borderRadius: 28, alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderStyle: "dashed", padding: 24, marginBottom: 18 },
+  emptyTitle: { color: t.text, fontSize: 17, fontWeight: "800" },
+  emptyText: { color: t.textSecondary, fontSize: 13.5, textAlign: "center" },
+  note: { color: t.textMuted, fontSize: 11, lineHeight: 16, paddingHorizontal: 8, textAlign: "center" },
+}));

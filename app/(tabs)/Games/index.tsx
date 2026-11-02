@@ -1,136 +1,114 @@
 // app/(tabs)/Games/index.tsx
-import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
+import { ArrowLeft, Gamepad2, Trophy } from "lucide-react-native";
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-native";
-import { useApp } from "../../../context/AppContext";
-
-import GuessGame from "@/components/games/GuessGame";
-import KnowMeGame from "@/components/games/KnowMeGame";
-import Scoreboard from "@/components/games/ScoreBoard";
-import ThisOrThatGame from "@/components/games/ThisOrThatGame";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppHeader from "@/components/AppHeader";
 import ConversationCards from "@/components/games/ConversationCards";
 import DrawingActivity from "@/components/games/DrawingActivity";
+import GuessGame from "@/components/games/GuessGame";
+import KnowMeGame from "@/components/games/KnowMeGame";
 import MemoryMatch from "@/components/games/MemoryMatch";
 import ReactionRace from "@/components/games/ReactionRace";
-import AppHeader from "@/components/AppHeader";
-import { gradients, palette } from "@/constants/design";
-import { Gamepad2 } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Scoreboard from "@/components/games/ScoreBoard";
+import ThisOrThatGame from "@/components/games/ThisOrThatGame";
+import { useTabBarSpace } from "@/components/SleekTabBar";
+import { ScreenBackground } from "@/components/ui/kit";
+import { useApp } from "@/context/AppContext";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 type GameType = "memory" | "reaction" | "draw" | "guess" | "knowme" | "thisorthat" | "cards";
+type Tone = "accent" | "violet" | "success" | "warning" | "info";
 
-const GAME_TABS: { id: GameType; label: string; emoji: string }[] = [
-  { id: "memory", label: "Memory", emoji: "🧩" },
-  { id: "reaction", label: "Reflex", emoji: "⚡" },
-  { id: "draw", label: "Draw", emoji: "🎨" },
-  { id: "guess", label: "Guess", emoji: "🎯" },
-  { id: "knowme", label: "Know Me", emoji: "🧠" },
-  { id: "thisorthat", label: "This or That", emoji: "↔️" },
-  { id: "cards", label: "Talk", emoji: "💬" },
+const GAMES: { id: GameType; label: string; emoji: string; blurb: string; tone: Tone }[] = [
+  { id: "knowme", label: "Know me", emoji: "🧠", blurb: "How well do you really know each other?", tone: "violet" },
+  { id: "thisorthat", label: "This or that", emoji: "↔️", blurb: "Quick picks, see where you match", tone: "accent" },
+  { id: "guess", label: "Guess", emoji: "🎯", blurb: "Set a secret, they guess it", tone: "warning" },
+  { id: "memory", label: "Memory", emoji: "🧩", blurb: "Race to match the pairs", tone: "success" },
+  { id: "reaction", label: "Reflex", emoji: "⚡", blurb: "Who's quicker on the tap?", tone: "info" },
+  { id: "draw", label: "Draw together", emoji: "🎨", blurb: "A live canvas for two", tone: "accent" },
+  { id: "cards", label: "Talk cards", emoji: "💬", blurb: "Prompts for deeper conversation", tone: "violet" },
 ];
 
 export default function Games() {
   const { pairId, myName, uid, partnerName } = useApp();
-  const [activeGame, setActiveGame] = useState<GameType>("memory");
-  const [isDrawing, setIsDrawing] = useState(false);
+  const t = useTheme();
+  const s = useStyles();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
+  const [active, setActive] = useState<GameType | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const tones: Record<Tone, string> = { accent: t.accentSoft, violet: t.violetSoft, success: t.successSoft, warning: t.warningSoft, info: t.infoSoft };
+  const game = GAMES.find((g) => g.id === active);
+
+  const open = (id: GameType) => { void Haptics.selectionAsync(); setActive(id); };
 
   return (
-    <LinearGradient colors={gradients.app} style={styles.container}>
-      <ScrollView scrollEnabled={!isDrawing} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: 120 }}>
-        
-        {/* TOP INTRO CARD */}
-        <View style={styles.headerWrap}><AppHeader eyebrow="PLAYSPACE" title="Closer through play" subtitle="Live challenges, playful prompts and a canvas for two." icon={<Gamepad2 color="#fff" size={22} />} /></View>
+    <ScreenBackground>
+      <ScrollView scrollEnabled={!isDrawing} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: tabSpace + 28 }}>
+        <View style={{ paddingHorizontal: 16 }}>
+          {!game ? (
+            <AppHeader eyebrow="PLAYSPACE" title="Closer through play" subtitle={`Live games and prompts for you and ${partnerName || "your partner"}.`} icon={<Gamepad2 color="#fff" size={22} />} />
+          ) : (
+            <View style={s.gameHead}>
+              <Pressable accessibilityLabel="All games" onPress={() => setActive(null)} style={s.back}><ArrowLeft color={t.text} size={20} /></Pressable>
+              <View style={[s.gameEmojiBox, { backgroundColor: tones[game.tone] }]}><Text style={s.gameEmoji}>{game.emoji}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.gameTitle}>{game.label}</Text>
+                <Text style={s.gameBlurb} numberOfLines={1}>{game.blurb}</Text>
+              </View>
+            </View>
+          )}
+        </View>
 
-        {/* TAB CONTROLS */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabBar}
-        >
-          {GAME_TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tabButton, activeGame === tab.id && styles.activeTab]}
-              onPress={() => setActiveGame(tab.id)}
-            >
-              <Text style={styles.tabEmoji}>{tab.emoji}</Text>
-              <Text style={[styles.tabText, activeGame === tab.id && styles.activeTabText]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ACTIVE MODULE CONTAINER */}
-        {activeGame === "guess" && (
-          <GuessGame pairId={pairId} myName={myName || "You"} partnerName={partnerName || ""} />
-        )}
-        {activeGame === "knowme" && (
-          <KnowMeGame pairId={pairId} myName={myName || "You"} partnerName={partnerName || ""} />
-        )}
-        {activeGame === "thisorthat" && (
-          <ThisOrThatGame
-            pairId={pairId}
-            uid={uid}
-            myName={myName || "Your partner"}
-            partnerName={partnerName || ""}
-          />
-        )}
-        {activeGame === "cards" && <ConversationCards />}
-        {activeGame === "memory" && <MemoryMatch pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} />}
-        {activeGame === "reaction" && (
-          <ReactionRace pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} />
-        )}
-        {activeGame === "draw" && (
-          <DrawingActivity pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} onDrawingChange={setIsDrawing} />
+        {!game && (
+          <View style={s.grid}>
+            {GAMES.map((item, index) => (
+              <Pressable key={item.id} onPress={() => open(item.id)} style={({ pressed }) => [s.tile, index === 0 && s.tileWide, pressed && { transform: [{ scale: 0.97 }] }]}>
+                <View style={[s.emojiBox, { backgroundColor: tones[item.tone] }, index === 0 && { marginBottom: 0 }]}><Text style={s.emoji}>{item.emoji}</Text></View>
+                <View style={index === 0 ? { flex: 1 } : undefined}>
+                  <Text style={s.tileTitle}>{item.label}</Text>
+                  <Text style={s.tileBlurb} numberOfLines={2}>{item.blurb}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
         )}
 
-        {/* SCOREBOARD RENDERING */}
-        {activeGame !== "draw" && <Scoreboard pairId={pairId} />}
+        {active === "guess" && <GuessGame pairId={pairId} myName={myName || "You"} partnerName={partnerName || ""} />}
+        {active === "knowme" && <KnowMeGame pairId={pairId} myName={myName || "You"} partnerName={partnerName || ""} />}
+        {active === "thisorthat" && <ThisOrThatGame pairId={pairId} uid={uid} myName={myName || "Your partner"} partnerName={partnerName || ""} />}
+        {active === "cards" && <ConversationCards />}
+        {active === "memory" && <MemoryMatch pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} />}
+        {active === "reaction" && <ReactionRace pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} />}
+        {active === "draw" && <DrawingActivity pairId={pairId} uid={uid} myName={myName || "You"} partnerName={partnerName || ""} onDrawingChange={setIsDrawing} />}
 
+        {active !== "draw" && active !== "cards" && (
+          <>
+            {!game && <View style={s.scoreHead}><Trophy color={t.warningText} size={18} /><Text style={s.scoreTitle}>Scoreboard</Text></View>}
+            <Scoreboard pairId={pairId} />
+          </>
+        )}
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  headerWrap: { marginHorizontal: 16 },
-  header: { paddingHorizontal: 20, paddingBottom: 18, flexDirection: "row", alignItems: "center", gap: 12 },
-  headerIcon: { width: 48, height: 48, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-  eyebrow: { color: "#F9A8D4", fontSize: 10, fontWeight: "900", letterSpacing: 1.8, marginBottom: 4 },
-  title: { fontSize: 23, fontWeight: "900", color: "#fff", letterSpacing: -0.6 },
-  subtitle: { marginTop: 4, fontSize: 12, lineHeight: 17, color: "#D8C9DF", fontWeight: "500" },
-  tabBar: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    marginHorizontal: 16,
-    borderRadius: 14,
-    padding: 6,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  tabButton: {
-    minWidth: 102,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 11,
-    gap: 6,
-  },
-  tabEmoji: { fontSize: 17 },
-  activeTab: {
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  tabText: { fontSize: 13, fontWeight: "700", color: "#D4C7DB" },
-  activeTabText: { color: palette.rose, fontWeight: "800" },
-  supportBanner: { marginHorizontal: 16, marginBottom: 12, padding: 11, borderRadius: 14, backgroundColor: "rgba(134,239,172,0.12)", borderWidth: 1, borderColor: "rgba(134,239,172,0.24)" },
-  supportBannerText: { color: "#BBF7D0", fontSize: 12, fontWeight: "700", textAlign: "center" },
-});
+const useStyles = makeStyles((t) => ({
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingHorizontal: 16 },
+  tile: { width: "48%", flexGrow: 1, minHeight: 148, padding: 16, borderRadius: 24, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, ...t.shadow },
+  tileWide: { width: "100%", minHeight: 0, flexDirection: "row", alignItems: "center", gap: 14 },
+  emojiBox: { width: 50, height: 50, borderRadius: 17, alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  emoji: { fontSize: 26 },
+  tileTitle: { color: t.text, fontSize: 16, fontWeight: "800" },
+  tileBlurb: { color: t.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 4 },
+  gameHead: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4, minHeight: 56 },
+  back: { width: 42, height: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceSunken, borderWidth: 1, borderColor: t.border },
+  gameEmojiBox: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  gameEmoji: { fontSize: 24 },
+  gameTitle: { color: t.text, fontSize: 22, fontWeight: "800", letterSpacing: -0.4 },
+  gameBlurb: { color: t.textSecondary, fontSize: 13, marginTop: 1 },
+  scoreHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 18, marginTop: 24 },
+  scoreTitle: { color: t.text, fontSize: 17, fontWeight: "800" },
+}));

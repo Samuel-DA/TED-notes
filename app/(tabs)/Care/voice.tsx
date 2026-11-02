@@ -3,12 +3,13 @@ import { fetch as expoFetch } from "expo/fetch";
 import { collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { deleteObject, getBytes, ref } from "firebase/storage";
 import { File, Paths } from "expo-file-system";
-import { Blob as ExpoBlob } from "expo-blob";
-import { Mic, Pause, Play, Square, Trash2, Waves } from "lucide-react-native";
+import { Mic, Pause, Play, Square, Trash2 } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { CareCard, CarePage } from "@/components/care/CareUI";
-import { palette } from "@/constants/design";
+import { ActivityIndicator, Alert, Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { CarePage } from "@/components/care/CareUI";
+import { Card, EmptyState, SectionHeader } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { auth, db, storage } from "@/firebase";
 import { notifyPartner } from "@/services/notifications";
@@ -18,15 +19,59 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const RETENTION_DAYS = 90;
 
 type Capsule = { id: string; storagePath: string; senderId: string; senderName: string; durationMs: number; expiresAt?: Timestamp };
-function CapsuleItem({ item, uid, pairId }: { item: Capsule; uid: string; pairId: string }) {
+const WAVE = [7, 14, 9, 19, 12, 17, 8, 14, 10, 18, 7, 13, 16, 9, 12, 6, 15, 11];
+
+function CapsuleItem({ item, uid, pairId, index }: { item: Capsule; uid: string; pairId: string; index: number }) {
+  const t = useTheme();
+  const styles = useStyles();
   const [localUri, setLocalUri] = useState<string | null>(null);
-  const player = useAudioPlayer(localUri); const status = useAudioPlayerStatus(player);
-  useEffect(() => { let active = true; getBytes(ref(storage, item.storagePath), 10 * 1024 * 1024).then((buffer) => { const file = new File(Paths.cache, `ted-capsule-${item.id}.m4a`); if (!file.exists) file.create(); file.write(new Uint8Array(buffer)); if (active) setLocalUri(file.uri); }).catch(console.warn); return () => { active = false; }; }, [item.id, item.storagePath]);
-  const remove = () => Alert.alert("Delete voice capsule?", "This permanently removes the recording for both of you.", [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: async () => { await deleteObject(ref(storage, item.storagePath)); await deleteDoc(doc(db, "pairs", pairId, "voiceCapsules", item.id)); } }]);
-  return <View style={styles.item}><Pressable disabled={!localUri} onPress={() => status.playing ? player.pause() : player.play()} style={[styles.play, !localUri && { opacity: 0.45 }]}>{!localUri ? <ActivityIndicator color="#fff" size="small" /> : status.playing ? <Pause color="#fff" size={17} /> : <Play color="#fff" fill="#fff" size={17} />}</Pressable><View style={{ flex: 1 }}><Text style={styles.name}>{item.senderName}</Text><View style={styles.wave}>{[7, 14, 9, 19, 12, 17, 8, 14, 10, 18, 7, 13].map((height, index) => <View key={index} style={[styles.bar, { height }]} />)}</View><Text style={styles.meta}>{Math.max(1, Math.round(item.durationMs / 1000))} seconds</Text></View>{item.senderId === uid && <Pressable accessibilityLabel="Delete recording" onPress={remove} style={styles.delete}><Trash2 color="#B97A8C" size={16} /></Pressable>}</View>;
+  const player = useAudioPlayer(localUri);
+  const status = useAudioPlayerStatus(player);
+  useEffect(() => {
+    let active = true;
+    getBytes(ref(storage, item.storagePath), 10 * 1024 * 1024).then((buffer) => {
+      const file = new File(Paths.cache, `ted-capsule-${item.id}.m4a`);
+      if (!file.exists) file.create();
+      file.write(new Uint8Array(buffer));
+      if (active) setLocalUri(file.uri);
+    }).catch(console.warn);
+    return () => { active = false; };
+  }, [item.id, item.storagePath]);
+
+  const mine = item.senderId === uid;
+  const progress = status.duration ? Math.min(1, status.currentTime / status.duration) : 0;
+  const toggle = () => {
+    if (status.playing) { player.pause(); return; }
+    if (status.duration && status.currentTime >= status.duration - 0.05) player.seekTo(0);
+    player.play();
+  };
+  const remove = () => Alert.alert("Delete voice note?", "This permanently removes the recording for both of you.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Delete", style: "destructive", onPress: async () => { await deleteObject(ref(storage, item.storagePath)).catch(() => undefined); await deleteDoc(doc(db, "pairs", pairId, "voiceCapsules", item.id)); } },
+  ]);
+
+  return (
+    <View style={[styles.item, index > 0 && styles.itemBorder]}>
+      <Pressable accessibilityLabel={status.playing ? "Pause" : "Play"} disabled={!localUri} onPress={toggle} style={[styles.play, !localUri && { opacity: 0.5 }]}>
+        <LinearGradient colors={mine ? [t.violet, t.plum] : t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        {!localUri ? <ActivityIndicator color="#fff" size="small" /> : status.playing ? <Pause color="#fff" fill="#fff" size={16} /> : <Play color="#fff" fill="#fff" size={16} />}
+      </Pressable>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.name}>{mine ? "You" : item.senderName}</Text>
+        <View style={styles.wave}>
+          {WAVE.map((height, i) => <View key={i} style={[styles.bar, { height }, i / WAVE.length < progress && { backgroundColor: mine ? t.violet : t.accent }]} />)}
+        </View>
+        <Text style={styles.meta}>{Math.max(1, Math.round(item.durationMs / 1000))}s</Text>
+      </View>
+      {mine && <Pressable accessibilityLabel="Delete recording" hitSlop={8} onPress={remove} style={styles.delete}><Trash2 color={t.textMuted} size={15} /></Pressable>}
+    </View>
+  );
 }
 
 export default function VoicePage() {
+  const t = useTheme();
+  const styles = useStyles();
+  const pulse = useRef(new Animated.Value(0)).current;
   const { pairId, uid, myName, partnerName } = useApp(); const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY); const state = useAudioRecorderState(recorder); const [capsules, setCapsules] = useState<Capsule[]>([]); const [busy, setBusy] = useState(false); const stoppingRef = useRef(false);
   useEffect(() => {
     if (!pairId) return;
@@ -64,11 +109,13 @@ export default function VoicePage() {
       // Firebase multipart request with Expo Blob and send it through Expo Fetch.
       const boundary = `ted-space-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const metadata = JSON.stringify({ name: storagePath, contentType: "audio/mp4" });
-      const uploadBody = new ExpoBlob([
-        `--${boundary}\r\nContent-Type: application/json; charset=utf-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: audio/mp4\r\n\r\n`,
-        audioBytes,
-        `\r\n--${boundary}--`,
-      ], { type: `multipart/related; boundary=${boundary}` });
+      const encoder = new TextEncoder();
+      const head = encoder.encode(`--${boundary}\r\nContent-Type: application/json; charset=utf-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: audio/mp4\r\n\r\n`);
+      const tail = encoder.encode(`\r\n--${boundary}--`);
+      const uploadBody = new Uint8Array(head.length + audioBytes.length + tail.length);
+      uploadBody.set(head, 0);
+      uploadBody.set(audioBytes, head.length);
+      uploadBody.set(tail, head.length + audioBytes.length);
       const token = await currentUser.getIdToken();
       const uploadResponse = await expoFetch(
         `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?name=${encodeURIComponent(storagePath)}`,
@@ -106,29 +153,60 @@ export default function VoicePage() {
     }
     const permission = await requestRecordingPermissionsAsync(); if (!permission.granted) return Alert.alert("Microphone permission needed", "Allow microphone access to record a comfort capsule."); await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true }); await recorder.prepareToRecordAsync(); recorder.record();
   };
-  return <CarePage eyebrow="VOICE COMFORT" title="A message they can keep" subtitle={`Leave ${partnerName} a reassuring voice note for difficult moments.`} icon={<Mic color="#fff" size={23} />}>
-    <View style={styles.recorder}><View style={styles.rings}><View style={[styles.recordCircle, state.isRecording && styles.recording]}>{state.isRecording ? <Waves color="#fff" size={31} /> : <Mic color="#fff" size={31} />}</View></View><Text style={styles.timer}>{state.isRecording ? `${Math.floor(state.durationMillis / 60000)}:${String(Math.floor(state.durationMillis / 1000) % 60).padStart(2, "0")}` : "Ready when you are"}</Text><Text style={styles.hint}>{state.isRecording ? "Recording sends automatically at 60 seconds." : "Record a short message they can replay whenever they need you."}</Text><Pressable onPress={toggle} disabled={busy} style={[styles.recordButton, state.isRecording && styles.stopButton]}>{busy ? <ActivityIndicator color="#fff" /> : state.isRecording ? <Square color="#fff" fill="#fff" size={18} /> : <Mic color="#fff" size={20} />}<Text style={styles.recordText}>{busy ? "Securing & sending…" : state.isRecording ? "Stop and send" : "Start recording"}</Text></Pressable><Text style={styles.privacy}>Pair-only storage · Maximum 60 seconds and 10 MB · Removed after 90 days</Text></View>
-    <CareCard title="Your comfort library" subtitle={capsules.length ? `${capsules.length} private recording${capsules.length === 1 ? "" : "s"}` : "Your recordings will appear here"}>{capsules.length ? capsules.map((item) => <CapsuleItem key={item.id} item={item} uid={uid || ""} pairId={pairId || ""} />) : <Text style={styles.empty}>No voice capsules yet. A few sincere words can mean a lot on a difficult day.</Text>}</CareCard>
-  </CarePage>;
+  useEffect(() => {
+    if (!state.isRecording) { pulse.stopAnimation(); pulse.setValue(0); return; }
+    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse, state.isRecording]);
+
+  const seconds = Math.floor(state.durationMillis / 1000);
+  const remaining = Math.max(0, 60 - seconds);
+
+  return (
+    <CarePage eyebrow="VOICE COMFORT" title="A message they can keep" subtitle={`Leave ${partnerName || "them"} a reassuring voice note for harder moments.`} icon={<Mic color="#fff" size={23} />}>
+      <Card variant="hero" style={styles.recorder}>
+        <View style={styles.rings}>
+          <Animated.View pointerEvents="none" style={[styles.pulse, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }] }]} />
+          <Pressable accessibilityRole="button" accessibilityLabel={state.isRecording ? "Stop and send" : "Start recording"} onPress={toggle} disabled={busy} style={({ pressed }) => [styles.recordCircle, pressed && { transform: [{ scale: 0.94 }] }]}>
+            <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            {busy ? <ActivityIndicator color="#fff" /> : state.isRecording ? <Square color="#fff" fill="#fff" size={26} /> : <Mic color="#fff" size={34} />}
+          </Pressable>
+        </View>
+        <Text style={styles.timer}>{state.isRecording ? `0:${String(seconds).padStart(2, "0")}` : busy ? "Sending…" : "Tap to record"}</Text>
+        <Text style={styles.hint}>{state.isRecording ? `Tap again to send · ${remaining}s left` : "Up to 60 seconds. They can replay it whenever they need you."}</Text>
+        {state.isRecording && <View style={styles.limitTrack}><View style={[styles.limitFill, { width: `${(seconds / 60) * 100}%` }]} /></View>}
+      </Card>
+
+      <SectionHeader title={capsules.length ? `Comfort library · ${capsules.length}` : "Comfort library"} />
+      {capsules.length ? (
+        <Card padded={false} style={{ borderRadius: 22 }}>
+          {capsules.map((item, index) => <CapsuleItem key={item.id} item={item} uid={uid || ""} pairId={pairId || ""} index={index} />)}
+        </Card>
+      ) : (
+        <EmptyState icon={Mic} title="No voice notes yet" body="A few sincere words can mean a lot on a difficult day." />
+      )}
+      <Text style={styles.privacy}>Only you two can hear these · max 10 MB · removed after 90 days</Text>
+    </CarePage>
+  );
 }
 
-const styles = StyleSheet.create({
-  recorder: { backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 16, padding: 22, alignItems: "center", marginBottom: 14, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.13)" },
-  rings: { width: 116, height: 116, borderRadius: 36, backgroundColor: "rgba(181,68,90,0.12)", alignItems: "center", justifyContent: "center", borderWidth: 10, borderColor: "rgba(181,68,90,0.08)" },
-  recordCircle: { width: 76, height: 76, borderRadius: 24, backgroundColor: palette.rose, alignItems: "center", justifyContent: "center" },
-  recording: { backgroundColor: "#953548" },
-  timer: { color: "#fff", fontSize: 24, fontWeight: "700", marginTop: 15 },
-  hint: { color: "#CDBFD3", fontSize: 12.5, lineHeight: 18, textAlign: "center", maxWidth: 280, marginTop: 5 },
-  recordButton: { minHeight: 50, minWidth: 210, paddingHorizontal: 20, borderRadius: 14, backgroundColor: palette.rose, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 17 },
-  stopButton: { backgroundColor: "#8C3043" },
-  recordText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  privacy: { color: "#CDBFD3", fontSize: 10.5, lineHeight: 15, textAlign: "center", marginTop: 12 },
-  item: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "#F0EAF1" },
-  play: { width: 43, height: 43, borderRadius: 14, backgroundColor: palette.plum, alignItems: "center", justifyContent: "center" },
-  name: { color: palette.text, fontSize: 14, fontWeight: "700" },
-  wave: { height: 20, flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 },
-  bar: { width: 3, borderRadius: 2, backgroundColor: "#CDA8C8" },
-  meta: { color: palette.muted, fontSize: 10.5 },
-  delete: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#FBF2F5", alignItems: "center", justifyContent: "center" },
-  empty: { color: palette.muted, fontSize: 13, lineHeight: 19, textAlign: "center", paddingVertical: 20 },
-});
+const useStyles = makeStyles((t) => ({
+  recorder: { padding: 24, alignItems: "center", borderRadius: 28 },
+  rings: { width: 132, height: 132, alignItems: "center", justifyContent: "center" },
+  pulse: { position: "absolute", width: 96, height: 96, borderRadius: 48, backgroundColor: t.accent },
+  recordCircle: { width: 96, height: 96, borderRadius: 48, overflow: "hidden", alignItems: "center", justifyContent: "center", ...t.shadowLg },
+  timer: { color: t.text, fontSize: 26, fontWeight: "800", marginTop: 10, letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
+  hint: { color: t.textSecondary, fontSize: 13.5, lineHeight: 19, textAlign: "center", maxWidth: 290, marginTop: 4 },
+  limitTrack: { alignSelf: "stretch", height: 4, borderRadius: 2, backgroundColor: t.surfaceSunken, marginTop: 16, overflow: "hidden" },
+  limitFill: { height: 4, borderRadius: 2, backgroundColor: t.accent },
+  item: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14 },
+  itemBorder: { borderTopWidth: 1, borderTopColor: t.border },
+  play: { width: 46, height: 46, borderRadius: 23, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  name: { color: t.text, fontSize: 14.5, fontWeight: "700" },
+  wave: { height: 22, flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 },
+  bar: { width: 3, borderRadius: 2, backgroundColor: t.borderStrong },
+  meta: { color: t.textMuted, fontSize: 11.5, marginTop: 2 },
+  delete: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  privacy: { color: t.textMuted, fontSize: 11.5, textAlign: "center", marginTop: 14 },
+}));

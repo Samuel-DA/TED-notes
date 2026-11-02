@@ -1,12 +1,13 @@
-import { palette } from "@/constants/design";
+
 import { db } from "@/firebase";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import * as Haptics from "expo-haptics";
 import { doc, increment, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { Gauge, RotateCcw, Trophy, Zap } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { notifyGamePartner } from "./notify";
-import { gameStyles } from "./theme";
+import { useGameStyles } from "./theme";
 
 type Phase = "idle" | "waiting" | "go" | "result" | "early";
 type Props = { pairId: string | null; uid: string | null; myName: string; partnerName: string };
@@ -20,6 +21,9 @@ type RaceGame = {
 };
 
 export default function ReactionRace({ pairId, uid, myName, partnerName }: Props) {
+  const t = useTheme();
+  const styles = useStyles();
+  const gameStyles = useGameStyles();
   const [phase, setPhase] = useState<Phase>("idle");
   const [race, setRace] = useState<RaceGame | null>(null);
   const goAt = useRef(0);
@@ -159,7 +163,7 @@ export default function ReactionRace({ pairId, uid, myName, partnerName }: Props
   return (
     <View style={gameStyles.card}>
       <View style={gameStyles.titleRow}>
-        <View style={styles.icon}><Zap color="#F59E0B" fill="#FBBF24" size={20} /></View>
+        <View style={styles.icon}><Zap color={t.warningText} fill="#FBBF24" size={20} /></View>
         <View style={{ flex: 1 }}>
           <Text style={gameStyles.title}>Reaction Race</Text>
           <Text style={styles.caption}>One attempt each. The fastest time wins the point.</Text>
@@ -173,7 +177,7 @@ export default function ReactionRace({ pairId, uid, myName, partnerName }: Props
           <Text style={[styles.hint, phase === "go" && styles.arenaTextGo]}>{hint}</Text>
         </Pressable>
       ) : (
-        <View style={styles.emptyRound}><Zap color="#F59E0B" size={34} /><Text style={styles.emptyTitle}>Ready for a speed test?</Text><Text style={styles.emptyText}>Start a round, then you and {partnerName} each get one valid attempt.</Text></View>
+        <View style={styles.emptyRound}><Zap color={t.warningText} size={34} /><Text style={styles.emptyTitle}>Ready for a speed test?</Text><Text style={styles.emptyText}>Start a round, then you and {partnerName} each get one valid attempt.</Text></View>
       )}
 
       {!!race?.roundId && <View style={styles.resultsRow}>
@@ -181,32 +185,32 @@ export default function ReactionRace({ pairId, uid, myName, partnerName }: Props
         <View style={styles.resultBox}><Text numberOfLines={1} style={styles.bestLabel}>{partnerName.toUpperCase()}</Text><Text style={styles.bestValue}>{partnerTime !== undefined ? `${partnerTime} ms` : "—"}</Text><Text style={styles.personalBest}>Best {partnerBest !== undefined ? `${partnerBest} ms` : "—"}</Text></View>
       </View>}
 
-      {roundComplete && <View style={styles.winnerBanner}><Trophy color="#B7791F" size={21} /><Text style={styles.winnerText}>{race?.outcome === "tie" ? `A perfect tie at ${race.winnerMs} ms` : race?.awardedUid === uid ? "You won this round and earned 1 point" : `${partnerName} won this round and earned 1 point`}</Text></View>}
+      {roundComplete && <View style={styles.winnerBanner}><Trophy color={t.warningText} size={21} /><Text style={styles.winnerText}>{race?.outcome === "tie" ? `A perfect tie at ${race.winnerMs} ms` : race?.awardedUid === uid ? "You won this round and earned 1 point" : `${partnerName} won this round and earned 1 point`}</Text></View>}
 
-      {(!race?.roundId || roundComplete) && <Pressable onPress={startNewRound} style={gameStyles.resetBtn}><RotateCcw color={palette.violet} size={17} /><Text style={gameStyles.resetText}>{race?.roundId ? "Start a new shared round" : "Start shared round"}</Text></Pressable>}
+      {(!race?.roundId || roundComplete) && <Pressable onPress={startNewRound} style={gameStyles.resetBtn}><RotateCcw color={t.violetText} size={17} /><Text style={gameStyles.resetText}>{race?.roundId ? "Start a new shared round" : "Start shared round"}</Text></Pressable>}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  icon: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#FFF7DF", alignItems: "center", justifyContent: "center", marginRight: 10 },
-  caption: { color: palette.muted, fontSize: 13, lineHeight: 18, marginTop: 2 },
-  arena: { height: 210, borderRadius: 16, backgroundColor: palette.inkSoft, alignItems: "center", justifyContent: "center", marginTop: 16 },
-  arenaGo: { backgroundColor: palette.success },
+const useStyles = makeStyles((t) => ({
+  icon: { width: 38, height: 38, borderRadius: 12, backgroundColor: t.warningSoft, alignItems: "center", justifyContent: "center", marginRight: 10 },
+  caption: { color: t.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  arena: { height: 210, borderRadius: 20, backgroundColor: t.plum, alignItems: "center", justifyContent: "center", marginTop: 16 },
+  arenaGo: { backgroundColor: t.success },
   arenaEarly: { backgroundColor: "#7F1D2D" },
   arenaDone: { opacity: 0.92 },
   pressed: { transform: [{ scale: 0.99 }] },
   arenaText: { color: "#fff", fontSize: 30, fontWeight: "900", marginTop: 12 },
   arenaTextGo: { color: "#fff" },
-  hint: { color: "#C6BBCB", fontSize: 13, marginTop: 7 },
-  emptyRound: { minHeight: 190, marginTop: 16, borderRadius: 16, backgroundColor: "#F8F4F9", alignItems: "center", justifyContent: "center", padding: 22 },
-  emptyTitle: { color: palette.text, fontSize: 18, fontWeight: "800", marginTop: 10 },
-  emptyText: { color: palette.muted, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 5 },
+  hint: { color: t.textMuted, fontSize: 13, marginTop: 7 },
+  emptyRound: { minHeight: 190, marginTop: 16, borderRadius: 16, backgroundColor: t.surfaceSunken, alignItems: "center", justifyContent: "center", padding: 22 },
+  emptyTitle: { color: t.text, fontSize: 18, fontWeight: "800", marginTop: 10 },
+  emptyText: { color: t.textSecondary, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 5 },
   resultsRow: { flexDirection: "row", gap: 10, marginTop: 12 },
-  resultBox: { flex: 1, backgroundColor: "#F7F3F8", borderRadius: 14, padding: 12 },
-  bestLabel: { color: palette.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.7 },
-  bestValue: { color: palette.text, fontSize: 18, fontWeight: "800", marginTop: 4 },
-  personalBest: { color: palette.muted, fontSize: 11, marginTop: 3 },
-  winnerBanner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, backgroundColor: "#FFF7DF", padding: 12, marginTop: 12 },
-  winnerText: { flex: 1, color: "#7C5310", fontSize: 13, lineHeight: 18, fontWeight: "800" },
-});
+  resultBox: { flex: 1, backgroundColor: t.surfaceSunken, borderRadius: 14, padding: 12 },
+  bestLabel: { color: t.textSecondary, fontSize: 10, fontWeight: "800", letterSpacing: 0.7 },
+  bestValue: { color: t.text, fontSize: 18, fontWeight: "800", marginTop: 4 },
+  personalBest: { color: t.textSecondary, fontSize: 11, marginTop: 3 },
+  winnerBanner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, backgroundColor: t.warningSoft, padding: 12, marginTop: 12 },
+  winnerText: { flex: 1, color: t.warningText, fontSize: 13, lineHeight: 18, fontWeight: "800" },
+}));

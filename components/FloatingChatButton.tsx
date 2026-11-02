@@ -4,7 +4,8 @@ import { MessageCircleHeart } from "lucide-react-native";
 import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, PanResponder, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { palette } from "@/constants/design";
+import { LinearGradient } from "expo-linear-gradient";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 const STORAGE_KEY = "ted-space-floating-chat-position-v2";
@@ -18,6 +19,8 @@ export default function FloatingChatButton() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const unreadCount = useUnreadMessages();
+  const t = useTheme();
+  const styles = useStyles();
   const initial = useMemo<Point>(() => ({
     x: Math.max(EDGE, width - BUTTON_SIZE - 18),
     y: Math.max(insets.top + EDGE, height - insets.bottom - BUTTON_SIZE - 98),
@@ -86,6 +89,7 @@ export default function FloatingChatButton() {
           onPress={() => router.push("/chat" as Href)}
           style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
         >
+          <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: BUTTON_SIZE / 2 }]} />
           <MessageCircleHeart color="#fff" size={25} strokeWidth={2.2} />
           {unreadCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></View>}
         </Pressable>
@@ -94,10 +98,10 @@ export default function FloatingChatButton() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   positioner: { position: "absolute", left: 0, top: 0, width: BUTTON_SIZE, height: BUTTON_SIZE, zIndex: 50 },
-  button: { width: BUTTON_SIZE, height: BUTTON_SIZE, borderRadius: BUTTON_SIZE / 2, backgroundColor: palette.rose, justifyContent: "center", alignItems: "center", shadowColor: palette.rose, shadowOpacity: 0.36, shadowRadius: 12, shadowOffset: { width: 0, height: 7 }, elevation: 12 },
-  buttonPressed: { transform: [{ scale: 0.94 }], opacity: 0.9 },
-  badge: { position: "absolute", top: -4, right: -4, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", paddingHorizontal: 4, borderWidth: 2, borderColor: palette.rose },
-  badgeText: { color: palette.rose, fontSize: 10, fontWeight: "800" },
-});
+  button: { width: BUTTON_SIZE, height: BUTTON_SIZE, borderRadius: BUTTON_SIZE / 2, justifyContent: "center", alignItems: "center", backgroundColor: t.accent, borderWidth: 2, borderColor: t.mode === "dark" ? "rgba(255,255,255,0.18)" : "#FFFFFF", ...t.shadowLg },
+  buttonPressed: { transform: [{ scale: 0.94 }], opacity: 0.92 },
+  badge: { position: "absolute", top: -5, right: -5, minWidth: 21, height: 21, borderRadius: 11, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", paddingHorizontal: 4, borderWidth: 2, borderColor: t.accent },
+  badgeText: { color: t.accent, fontSize: 10, fontWeight: "900" },
+}));

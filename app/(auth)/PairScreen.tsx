@@ -8,24 +8,20 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { KeyRound, Link2, Sparkles } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { AuthField, AuthShell } from "@/components/auth/AuthShell";
+import { Button, ScreenBackground } from "@/components/ui/kit";
+import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { auth, db } from "../../firebase";
 
 export default function PairScreen() {
   const router = useRouter();
   const user = auth.currentUser;
+  const t = useTheme();
+  const styles = useStyles();
 
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(true);
@@ -58,7 +54,7 @@ export default function PairScreen() {
     setProcessing(true);
     try {
       const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (!userSnap.exists()) return;
+      if (!userSnap.exists()) { Alert.alert("Profile not found", "Your account setup didn't finish. Sign out and register again."); return; }
 
       const { name } = userSnap.data();
       // Firestore auto IDs use a cryptographically strong, high-entropy generator.
@@ -74,8 +70,8 @@ export default function PairScreen() {
       batch.update(doc(db, "users", user.uid), { pairId });
       await batch.commit();
       router.replace("/(auth)/WaitingForPartner");
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Could not create pair");
+    } catch {
+      Alert.alert("Couldn't create your invite", "Check your connection and try again.");
     } finally {
       setProcessing(false);
     }
@@ -84,7 +80,7 @@ export default function PairScreen() {
   // Join an existing pair
   const joinPair = async () => {
     if (!user || !joinCode.trim()) {
-      Alert.alert("Missing Code", "Please enter a partner code");
+      Alert.alert("Enter a code", "Paste the invite code your partner shared with you.");
       return;
     }
 
@@ -94,7 +90,7 @@ export default function PairScreen() {
 
     try {
       const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (!userSnap.exists()) return;
+      if (!userSnap.exists()) { Alert.alert("Profile not found", "Your account setup didn't finish. Sign out and register again."); return; }
 
       const { name } = userSnap.data();
       await runTransaction(db, async (transaction) => {
@@ -116,11 +112,11 @@ export default function PairScreen() {
     } catch (error) {
       const reason = error instanceof Error ? error.message : "";
       if (reason === "PAIR_FULL") {
-        Alert.alert("Pair Full", "This pair already has two members");
+        Alert.alert("That space is full", "This invite has already been used by two people.");
       } else if (reason === "ALREADY_MEMBER") {
-        Alert.alert("Already Joined", "You are already a member of this pair");
+        Alert.alert("Already joined", "You're already part of this space.");
       } else {
-        Alert.alert("Invalid Code", "No available pair was found with this code");
+        Alert.alert("Code not found", "Check the code and try again. It's case-sensitive.");
       }
     } finally {
       setProcessing(false);
@@ -128,102 +124,39 @@ export default function PairScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#4f46e5" />
-        <Text style={{ marginTop: 12, color: "#4f46e5" }}>Loading…</Text>
-      </View>
-    );
+    return <ScreenBackground style={{ alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.accent} /></ScreenBackground>;
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+    <AuthShell
+      title="Connect with your person"
+      subtitle="TED Space is built for two. Create an invite, or join with the code they sent you."
+      footer={<Pressable onPress={() => void signOut(auth)} hitSlop={8}><Text style={styles.signOut}>Sign out</Text></Pressable>}
     >
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.kicker}>ONE PRIVATE SPACE</Text>
-        <Text style={styles.title}>Connect with your person</Text>
-        <Text style={styles.subtitle}>Create a private invite or enter the code they sent you.</Text>
+      <View style={styles.option}>
+        <View style={[styles.optionIcon, { backgroundColor: t.accentSoft }]}><Sparkles color={t.accentText} size={20} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.optionTitle}>Start a new space</Text>
+          <Text style={styles.optionBody}>You&apos;ll get a code to send to your partner.</Text>
+        </View>
+      </View>
+      <Button title="Create invite code" icon={Link2} onPress={createPair} loading={processing} />
 
-        <TouchableOpacity
-          style={[styles.button, processing && styles.disabled]}
-          onPress={createPair}
-          disabled={processing}
-        >
-          <Text style={styles.buttonText}>
-            {processing ? "Processing…" : "Create Invite Code"}
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.divider}><View style={styles.line} /><Text style={styles.or}>OR</Text><View style={styles.line} /></View>
 
-        <Text style={styles.or}>OR</Text>
-
-        <TextInput
-          placeholder="Enter Partner Code"
-          value={joinCode}
-          onChangeText={setJoinCode}
-          style={styles.input}
-          editable={!processing}
-        />
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            styles.secondary,
-            processing && styles.disabled,
-          ]}
-          onPress={joinPair}
-          disabled={processing}
-        >
-          <Text style={styles.buttonText}>
-            {processing ? "Processing…" : "Join Pair"}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <AuthField label="Have a code?" icon={KeyRound} value={joinCode} onChangeText={setJoinCode} placeholder="Paste your partner's code" autoCapitalize="none" autoCorrect={false} editable={!processing} returnKeyType="go" onSubmitEditing={joinPair} />
+      <Button title="Join their space" variant="secondary" onPress={joinPair} disabled={!joinCode.trim() || processing} />
+    </AuthShell>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: "#16121F",
-    justifyContent: "center",
-    padding: 24,
-  },
-  loader: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#16121F",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#fff",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  button: {
-    backgroundColor: "#B5445A",
-    padding: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  secondary: { backgroundColor: "#76527D" },
-  disabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontWeight: "700" },
-  or: { textAlign: "center", marginVertical: 14, fontWeight: "800", color: "#8F8296", fontSize: 11, letterSpacing: 1.5 },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    fontSize: 16,
-    color: "#211A2C",
-  },
-  kicker: { color: "#F08BA0", textAlign: "center", fontSize: 10, fontWeight: "900", letterSpacing: 1.8, marginBottom: 8 },
-  subtitle: { color: "#B4A8BA", textAlign: "center", fontSize: 14, lineHeight: 20, marginBottom: 30 },
-});
+const useStyles = makeStyles((t) => ({
+  option: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
+  optionIcon: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  optionTitle: { color: t.text, fontSize: 16, fontWeight: "800" },
+  optionBody: { color: t.textSecondary, fontSize: 13.5, marginTop: 2 },
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 20 },
+  line: { flex: 1, height: 1, backgroundColor: t.border },
+  or: { color: t.textMuted, fontSize: 11.5, fontWeight: "800", letterSpacing: 1.2 },
+  signOut: { color: t.textMuted, fontSize: 14, fontWeight: "700" },
+}));

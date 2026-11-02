@@ -1,7 +1,8 @@
 import { MessageCircleHeart } from "lucide-react-native";
+import { makeStyles } from "@/hooks/useTheme";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { palette } from "@/constants/design";
+import { Pressable, Text, View } from "react-native";
+
 
 const CARDS = [
   { category: "Us", text: "What is one small moment with me that you still think about?" },
@@ -22,6 +23,7 @@ const CARDS = [
 ] as const;
 
 export default function ConversationCards() {
+  const styles = useStyles();
   const [index, setIndex] = useState(() => new Date().getDate() % CARDS.length);
   const [seen, setSeen] = useState<number[]>([]);
   const card = CARDS[index];
@@ -53,13 +55,13 @@ export default function ConversationCards() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   wrapper: { padding: 16 },
   card: {
     minHeight: 310,
     borderRadius: 16,
     padding: 26,
-    backgroundColor: palette.inkSoft,
+    backgroundColor: t.plum,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -73,7 +75,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   category: {
-    color: "#F0B9C4",
+    color: t.accentText,
     textTransform: "uppercase",
     letterSpacing: 2,
     fontSize: 12,
@@ -87,12 +89,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 18,
   },
-  tip: { color: "#c7d2fe", textAlign: "center", fontSize: 12, lineHeight: 18 },
+  tip: { color: t.violetText, textAlign: "center", fontSize: 12, lineHeight: 18 },
   button: {
     marginTop: 12,
-    backgroundColor: "#fff",
+    backgroundColor: t.surface,
     borderRadius: 16,
     paddingVertical: 14,
   },
-  buttonText: { color: palette.rose, fontWeight: "800", textAlign: "center" },
-});
+  buttonText: { color: t.accentText, fontWeight: "800", textAlign: "center" },
+}));
