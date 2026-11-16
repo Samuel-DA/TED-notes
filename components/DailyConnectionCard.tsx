@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Check, Flame, HeartHandshake } from "lucide-react-native";
+import { Check, Flame, HeartHandshake, Trophy } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Card } from "@/components/ui/kit";
@@ -10,11 +10,13 @@ type Props = {
   partnerCheckedIn: boolean;
   partnerName: string;
   streak: number;
+  /** Longest shared streak ever. */
+  bestStreak?: number;
   onToggle: () => void;
   gentle?: boolean;
 };
 
-export default function DailyConnectionCard({ checkedIn, partnerCheckedIn, partnerName, streak, onToggle, gentle = false }: Props) {
+export default function DailyConnectionCard({ checkedIn, partnerCheckedIn, partnerName, streak, bestStreak = 0, onToggle, gentle = false }: Props) {
   const t = useTheme();
   const s = useStyles();
   const complete = checkedIn && partnerCheckedIn;
@@ -28,10 +30,17 @@ export default function DailyConnectionCard({ checkedIn, partnerCheckedIn, partn
           <Text style={s.title}>{complete ? "You're both here" : "Are you here today?"}</Text>
         </View>
         {!gentle && (
-          <View style={s.streak}>
-            <Flame color={t.warning} fill={streak > 0 ? t.warning : "transparent"} size={18} />
-            <Text style={s.streakNumber}>{streak}</Text>
-            <Text style={s.streakLabel}>day{streak === 1 ? "" : "s"}</Text>
+          <View style={s.streaks}>
+            <View style={s.streak}>
+              <Flame color={t.warning} fill={streak > 0 ? t.warning : "transparent"} size={18} />
+              <Text style={s.streakNumber}>{streak}</Text>
+              <Text style={s.streakLabel}>NOW</Text>
+            </View>
+            <View style={[s.streak, s.best]}>
+              <Trophy color={t.violetText} size={17} />
+              <Text style={s.streakNumber}>{Math.max(bestStreak, streak)}</Text>
+              <Text style={[s.streakLabel, { color: t.violetText }]}>BEST</Text>
+            </View>
           </View>
         )}
       </View>
@@ -81,9 +90,11 @@ const useStyles = makeStyles((t) => ({
   top: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   eyebrow: { color: t.accentText, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },
   title: { color: t.text, fontSize: 21, fontWeight: "800", letterSpacing: -0.4, marginTop: 4 },
-  streak: { alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: t.warningSoft },
+  streaks: { flexDirection: "row", gap: 6 },
+  streak: { alignItems: "center", minWidth: 52, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 16, backgroundColor: t.warningSoft },
+  best: { backgroundColor: t.violetSoft },
   streakNumber: { color: t.text, fontSize: 18, fontWeight: "900", marginTop: 1 },
-  streakLabel: { color: t.warningText, fontSize: 10, fontWeight: "800" },
+  streakLabel: { color: t.warningText, fontSize: 9.5, fontWeight: "800", letterSpacing: 0.6 },
   flow: { flexDirection: "row", alignItems: "center", marginTop: 20, paddingHorizontal: 6 },
   person: { width: 72, alignItems: "center" },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: t.surfaceSunken, borderWidth: 1.5, borderColor: t.borderStrong },

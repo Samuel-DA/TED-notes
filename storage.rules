@@ -9,6 +9,32 @@ service firebase.storage {
         ).data.members;
     }
 
+    match /pairs/{pairId}/chatMedia/{ownerUid}/{fileName} {
+      allow read: if isPairMember(pairId);
+      allow create: if isPairMember(pairId)
+        && request.auth.uid == ownerUid
+        && fileName.matches('^[A-Za-z0-9_-]+[.][a-z0-9]+$')
+        && (
+          (request.resource.contentType.matches('image/.*') && request.resource.size <= 15 * 1024 * 1024)
+          || (request.resource.contentType.matches('video/.*') && request.resource.size <= 50 * 1024 * 1024)
+          // End-to-end encrypted photos/videos are uploaded as opaque ciphertext.
+          || (request.resource.contentType == 'application/octet-stream' && request.resource.size <= 51 * 1024 * 1024)
+        );
+      allow update: if false;
+      allow delete: if isPairMember(pairId) && request.auth.uid == ownerUid;
+    }
+
+    match /pairs/{pairId}/proofOfLife/{ownerUid}/{fileName} {
+      allow read: if isPairMember(pairId);
+      allow create: if isPairMember(pairId)
+        && request.auth.uid == ownerUid
+        && fileName.matches('^[A-Za-z0-9_-]+[.][a-z]+$')
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size <= 15 * 1024 * 1024;
+      allow update: if false;
+      allow delete: if isPairMember(pairId) && request.auth.uid == ownerUid;
+    }
+
     match /pairs/{pairId}/voiceCapsules/{ownerUid}/{fileName} {
       allow read: if isPairMember(pairId);
       allow create: if isPairMember(pairId)

@@ -1,7 +1,7 @@
 // app/_layout.tsx
 import { Href, Redirect, Stack, usePathname, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View, Platform } from "react-native";
+import { ActivityIndicator, AppState, Keyboard, Pressable, StyleSheet, Text, View, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { makeStyles, useTheme } from "@/hooks/useTheme";
@@ -12,7 +12,9 @@ import { Fingerprint, Heart, Lock } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import FloatingChatButton from "../components/FloatingChatButton";
 import { AppProvider, useApp } from "../context/AppContext";
+import { E2EEProvider } from "../context/E2EEContext";
 import AppAlert from "../components/AppAlert";
+import IncomingCallWatcher from "../components/calls/IncomingCallWatcher";
 import { getNotificationsModule, type NotificationResponse } from "../services/notifications";
 
 // 🚀 IMPORT AND EXECUTE IMMEDIATELY
@@ -57,6 +59,8 @@ function NotificationNavigator() {
         if (route === "care_voice") router.push("/(tabs)/Care/voice");
         if (route === "games") router.push("/(tabs)/Games");
         if (route === "home") router.push("/(tabs)/Home");
+        if (route === "recap") router.push("/recap" as Href);
+        if (route === "memories") router.push("/memories" as Href);
         if (response) {
           void Notifications.clearLastNotificationResponseAsync();
           void Notifications.setBadgeCountAsync(0);
@@ -88,6 +92,11 @@ function RootNavigator() {
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(t.bgSolid).catch(() => undefined);
   }, [t.bgSolid]);
+
+  // Don't let a keyboard left open on the previous screen cover the Unlock button.
+  useEffect(() => {
+    if (isLocked) Keyboard.dismiss();
+  }, [isLocked]);
 
   if (loading) return <SplashScreen />;
 
@@ -128,10 +137,15 @@ function RootNavigator() {
         <Stack.Screen name="(auth)/WaitingForPartner" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="proof" />
         <Stack.Screen name="chat" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="call/[id]" options={{ animation: "fade", gestureEnabled: false }} />
+        <Stack.Screen name="memories" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="recap" options={{ animation: "slide_from_right" }} />
       </Stack>
 
-      {pairId && partnerName && !pathname.endsWith("/chat") && !shouldShowLock && <FloatingChatButton />}
+      {pairId && partnerName && !pathname.endsWith("/chat") && !pathname.startsWith("/call") && !shouldShowLock && <FloatingChatButton />}
+      {pairId && partnerName && !pathname.startsWith("/call") && <IncomingCallWatcher />}
       {shouldShowLock && (
         <ScreenBackground style={styles.lockOverlay}>
           <SafeAreaView style={styles.lockSafe}>
@@ -159,9 +173,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppProvider>
-        <NotificationNavigator />
-        <RootNavigator />
-        <AppAlert />
+        <E2EEProvider>
+          <NotificationNavigator />
+          <RootNavigator />
+          <AppAlert />
+        </E2EEProvider>
       </AppProvider>
     </GestureHandlerRootView>
   );

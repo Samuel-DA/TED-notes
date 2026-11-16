@@ -1,6 +1,7 @@
 // context/AppContext.tsx
 import { registerForPushNotificationsAsync, removePushTokenForUser, savePushTokenForUser } from "@/services/notifications";
-import { doc, onSnapshot } from "firebase/firestore";
+import { clearWidget } from "../services/widget";
+import { disableNetwork, doc, enableNetwork, onSnapshot } from "firebase/firestore";
 import React, { createContext, useCallback, useContext, useEffect, useState, useRef } from "react";
 import { AppState, AppStateStatus, Platform } from "react-native"; 
 import * as LocalAuthentication from "expo-local-authentication";
@@ -10,12 +11,23 @@ interface AppContextType {
   uid: string | null;
   myName: string | null;
   partnerName: string | null;
+  /** The partner's user id, once they've joined. */
+  partnerUid: string | null;
   pairId: string | null;
   loading: boolean;
   isLocked: boolean;
   authenticateBiometrics: () => Promise<boolean>;
   suppressAppLock: (durationMs?: number) => void;
+  /** Today's local date (YYYY-MM-DD). Updates at midnight and when the app returns to the foreground. */
+  today: string;
+  /** Increments every time the app returns to the foreground. Use as an effect dependency to refresh. */
+  resumeKey: number;
 }
+
+const localDateKey = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -23,8 +35,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [uid, setUid] = useState<string | null>(null);
   const [myName, setMyName] = useState<string | null>(null);
   const [partnerName, setPartnerName] = useState<string | null>(null);
+  const [partnerUid, setPartnerUid] = useState<string | null>(null);
   const [pairId, setPairId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [today, setToday] = useState(localDateKey);
+  const [resumeKey, setResumeKey] = useState(0);
 
   // Start locked on native platforms. Web has no local biometric capability.
   const [isLocked, setIsLocked] = useState<boolean>(Platform.OS !== "web");
@@ -98,9 +113,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activePairId.current = null;
 
       if (!user) {
+        void clearWidget();
         setUid(null);
         setMyName(null);
         setPartnerName(null);
+        setPartnerUid(null);
         setPairId(null);
         setLoading(false);
         return;
@@ -131,6 +148,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         activePairId.current = newPairId;
         setPartnerName(null);
+        setPartnerUid(null);
 
         unsubscribePair?.();
         unsubscribePair = undefined;
@@ -145,6 +163,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         unsubscribePair = onSnapshot(pairRef, (pairSnap) => {
           if (!pairSnap.exists()) {
             setPartnerName(null);
+            setPartnerUid(null);
             setLoading(false);
             return;
           }
@@ -155,6 +174,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const partnerUid = Object.keys(names).find((id) => id !== user.uid);
 
           setPartnerName(partnerUid ? names[partnerUid] : null);
+          setPartnerUid(partnerUid ?? null);
           setLoading(false);
         });
       });
@@ -238,9 +258,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [authenticateBiometrics]);
 
+  // 4. Keep data fresh: reconnect Firestore after the app has been in the
+  // background, and roll "today" over at midnight / on resume.
+  useEffect(() => {
+    let backgroundedAt = 0;
+    let midnightTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleMidnight = () => {
+      if (midnightTimer) clearTimeout(midnightTimer);
+      const now = new Date();
+      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+      midnightTimer = setTimeout(() => { setToday(localDateKey()); scheduleMidnight(); }, next.getTime() - now.getTime());
+    };
+    scheduleMidnight();
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background") { backgroundedAt = Date.now(); return; }
+      if (state !== "active") return;
+      setToday(localDateKey());
+      scheduleMidnight();
+      if (backgroundedAt && Date.now() - backgroundedAt > 3000) {
+        // Kick every live listener so it re-syncs instead of waiting on a dead connection.
+        void disableNetwork(db).then(() => enableNetwork(db)).catch(console.warn);
+        setResumeKey((k) => k + 1);
+      }
+      backgroundedAt = 0;
+    });
+    return () => { sub.remove(); if (midnightTimer) clearTimeout(midnightTimer); };
+  }, []);
+
   return (
     <AppContext.Provider 
-      value={{ uid, myName, partnerName, pairId, loading, isLocked, authenticateBiometrics, suppressAppLock }}
+      value={{ uid, myName, partnerName, partnerUid, pairId, loading, isLocked, authenticateBiometrics, suppressAppLock, today, resumeKey }}
     >
       {children}
     </AppContext.Provider>

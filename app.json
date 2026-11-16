@@ -9,12 +9,23 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "appleTeamId": "DYGF57P3X2",
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.samuel.adebiyi.TEDnotes",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSFaceIDUsageDescription": "TED Space uses Face ID to securely lock your personal diary entries when backgrounded."
+        "NSFaceIDUsageDescription": "TED Space uses Face ID to securely lock your personal diary entries when backgrounded.",
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "NSCameraUsageDescription": "Allow TED Space to use the camera for video calls, photos and your outfit of the day.",
+        "NSMicrophoneUsageDescription": "Allow TED Space to use the microphone for calls, voice notes and videos."
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.samuel.adebiyi.TEDnotes"
+        ]
       }
     },
     "android": {
@@ -66,7 +77,53 @@
           "microphonePermission": "Allow TED Space to record private voice comfort capsules for your partner."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TED Space to choose photos and videos to share privately with your partner.",
+          "cameraPermission": "Allow TED Space to take photos for your outfit of the day and chat.",
+          "microphonePermission": "Allow TED Space to record sound with videos you share."
+        }
+      ],
+      "expo-video",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ],
+      "@stream-io/video-react-native-sdk",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Allow TED Space to use your camera for video calls with your partner.",
+          "microphonePermission": "Allow TED Space to use your microphone for calls with your partner."
+        }
+      ],
+      "expo-secure-store",
+      "@bacons/apple-targets",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "TedSpace",
+              "label": "TED Space",
+              "description": "Your partner's mood, your streak and the countdown to seeing them.",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "widgetCategory": "home_screen"
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

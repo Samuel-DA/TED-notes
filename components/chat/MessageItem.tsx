@@ -6,6 +6,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { Message } from "@/types/chat";
+import MediaThumb from "./MediaThumb";
 
 type Props = {
   message: Message;
@@ -18,6 +19,7 @@ type Props = {
   onSwipeReply: () => void;
   onLongPress: () => void;
   onReact: () => void;
+  onOpenMedia?: () => void;
   formatTime: () => string;
   getSeenText: () => string;
   isPickerVisible: boolean;
@@ -25,7 +27,7 @@ type Props = {
 
 const SWIPE_THRESHOLD = 60;
 
-export function MessageItem({ message, isMe, partnerName, replySender, continued, onSwipeReply, onLongPress, formatTime, getSeenText }: Props) {
+export function MessageItem({ message, isMe, partnerName, replySender, continued, onSwipeReply, onLongPress, onOpenMedia, formatTime, getSeenText }: Props) {
   const t = useTheme();
   const s = useStyles();
   const reactions = message.reactions ? Object.entries(message.reactions) : [];
@@ -67,7 +69,12 @@ export function MessageItem({ message, isMe, partnerName, replySender, continued
                   <Text style={[s.quoteText, { color: mineGradient ? "rgba(255,255,255,0.85)" : t.textSecondary }]} numberOfLines={2}>{message.replyTo.text || "Message"}</Text>
                 </View>
               )}
-              <Text style={[s.text, { color: textColor }, deleted && s.textDeleted]}>{deleted ? "This message was deleted" : message.text}</Text>
+              {!!message.media && !deleted && (
+                <View style={s.mediaWrap}>
+                  <MediaThumb media={message.media} onPress={() => onOpenMedia?.()} onLongPress={onLongPress} maxWidth={232} />
+                </View>
+              )}
+              {(deleted || !!message.text) && <Text style={[s.text, { color: textColor }, deleted && s.textDeleted]}>{deleted ? "This message was deleted" : message.text}</Text>}
               <View style={s.meta}>
                 {!!message.editedAt && !deleted && <Text style={[s.metaText, { color: metaColor }]}>edited · </Text>}
                 <Text style={[s.metaText, { color: metaColor }]}>{formatTime()}</Text>
@@ -105,6 +112,7 @@ const useStyles = makeStyles((t) => ({
   quoteName: { fontSize: 12, fontWeight: "800", marginBottom: 1 },
   quoteText: { fontSize: 13 },
   text: { fontSize: 16, lineHeight: 22 },
+  mediaWrap: { marginHorizontal: -9, marginTop: -4, marginBottom: 4 },
   textDeleted: { fontStyle: "italic", fontSize: 14.5 },
   meta: { flexDirection: "row", alignItems: "center", alignSelf: "flex-end", marginTop: 2 },
   metaText: { fontSize: 10.5, fontWeight: "500" },

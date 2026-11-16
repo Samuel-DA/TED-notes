@@ -40,8 +40,11 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          "name", "expoPushToken", "pairId", "notificationPreview", "settingsUpdatedAt"
+          "name", "expoPushToken", "pairId", "notificationPreview", "settingsUpdatedAt",
+          "e2eePublicKey", "e2eeBackup"
         ])
+        && request.resource.data.get("e2eePublicKey", "") is string
+        && request.resource.data.get("e2eePublicKey", "").size() <= 64
         && (
           request.resource.data.pairId == resource.data.pairId ||
           (
@@ -93,8 +96,12 @@ service cloud.firestore {
           request.auth.uid in resource.data.members
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             "moods", "moodDates", "notes", "noteTimestamps", "dailyConfirmations"
-            , "nextVisitAt", "nextVisitUpdatedAt"
+            , "nextVisitAt", "nextVisitUpdatedAt", "askedQuestionIds", "questionSuggestions"
           ])
+          && request.resource.data.get("askedQuestionIds", []) is list
+          && request.resource.data.get("askedQuestionIds", []).size() <= 1200
+          && request.resource.data.get("questionSuggestions", []) is list
+          && request.resource.data.get("questionSuggestions", []).size() <= 20
         ) ||
         // Joining is a one-time 1 -> 2 member transition, changing only identity fields.
         (
@@ -119,10 +126,19 @@ service cloud.firestore {
         allow create: if isPairMember(pairId)
           && request.resource.data.keys().hasOnly([
             "text", "type", "senderId", "createdAt", "localCreatedAt",
-            "readBy", "replyTo", "reactions"
+            "readBy", "replyTo", "reactions", "media", "e2ee"
           ])
           && request.resource.data.senderId == request.auth.uid
-          && request.resource.data.type in ["text", "image", "file"]
+          && request.resource.data.type in ["text", "image", "video", "file"]
+          && (
+            !("media" in request.resource.data)
+            || (
+              request.resource.data.media is map
+              && request.resource.data.media.path is string
+              && request.resource.data.media.path.matches(
+                "pairs/" + pairId + "/chatMedia/" + request.auth.uid + "/[A-Za-z0-9_-]+[.][a-z0-9]+")
+            )
+          )
           && request.resource.data.createdAt is timestamp
           && request.resource.data.readBy == [request.auth.uid];
 
@@ -146,16 +162,17 @@ service cloud.firestore {
           (
             request.auth.uid == resource.data.senderId
             && resource.data.get("deletedAt", null) == null
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "editedAt"])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "editedAt", "e2ee"])
             && request.resource.data.text is string
-            && request.resource.data.text.size() > 0
             && request.resource.data.text.size() <= 4000
+            && (request.resource.data.text.size() > 0 || request.resource.data.get("e2ee", null) is map)
             && request.resource.data.editedAt is timestamp
           ) ||
           (
             request.auth.uid == resource.data.senderId
             && resource.data.get("deletedAt", null) == null
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "deletedAt"])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "deletedAt", "e2ee"])
+            && !("e2ee" in request.resource.data)
             && request.resource.data.text == ""
             && request.resource.data.deletedAt is timestamp
           )
@@ -195,7 +212,7 @@ service cloud.firestore {
           && validPlanMeta(request.resource.data);
         allow update: if isPairMember(pairId)
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(["text", "completed", "order", "category", "dueDate"])
+            .hasOnly(["text", "completed", "completedAt", "order", "category", "dueDate"])
           && validPlanMeta(request.resource.data);
         allow delete: if isPairMember(pairId);
       }
@@ -209,8 +226,9 @@ service cloud.firestore {
         allow read: if isPairMember(pairId);
         allow create: if isPairMember(pairId)
           && request.resource.data.keys().hasOnly([
-            "title", "dateAt", "note", "createdBy", "createdAt"
+            "title", "dateAt", "note", "createdBy", "createdAt", "repeatsYearly"
           ])
+          && request.resource.data.get("repeatsYearly", false) is bool
           && request.resource.data.title is string
           && request.resource.data.title.size() > 0
           && request.resource.data.title.size() <= 120
@@ -295,6 +313,64 @@ service cloud.firestore {
         allow delete: if isPairMember(pairId) && request.auth.uid == ownerUid;
       }
 
+      // Calls: ringing state and history. Media itself flows through Stream, end-to-end encrypted.
+      match /calls/{callId} {
+        allow read: if isPairMember(pairId);
+        allow create: if isPairMember(pairId)
+          && callId.matches('^[A-Za-z0-9_-]{8,80}$')
+          && request.resource.data.keys().hasOnly(["callerId", "calleeId", "kind", "status", "createdAt"])
+          && request.resource.data.callerId == request.auth.uid
+          && request.resource.data.calleeId is string
+          && request.resource.data.kind in ["audio", "video"]
+          && request.resource.data.status == "ringing"
+          && request.resource.data.createdAt is timestamp;
+        allow update: if isPairMember(pairId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["status", "answeredAt", "endedAt", "durationSec"])
+          && request.resource.data.status in ["ringing", "accepted", "declined", "missed", "ended", "cancelled"];
+        allow delete: if false;
+      }
+
+      // Weekly recaps are written by the server only.
+      match /recaps/{weekId} {
+        allow read: if isPairMember(pairId);
+        allow write: if false;
+      }
+
+      // Outfit of the day / proof of life: one post per person per day, id "<YYYY-MM-DD>_<uid>".
+      match /proofOfLife/{postId} {
+        allow read: if isPairMember(pairId);
+        allow create: if isPairMember(pairId)
+          && postId == request.resource.data.date + "_" + request.auth.uid
+          && request.resource.data.keys().hasOnly([
+            "ownerUid", "date", "storagePath", "caption", "width", "height", "createdAt"
+          ])
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.date is string
+          && request.resource.data.date.size() == 10
+          && request.resource.data.storagePath.matches(
+            "pairs/" + pairId + "/proofOfLife/" + request.auth.uid + "/[A-Za-z0-9_-]+[.][a-z]+")
+          && request.resource.data.caption is string
+          && request.resource.data.caption.size() <= 140
+          && request.resource.data.createdAt is timestamp;
+        allow update: if isPairMember(pairId) && (
+          (
+            // Owner retakes today's photo.
+            resource.data.ownerUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["storagePath", "caption", "width", "height", "createdAt"])
+            && request.resource.data.storagePath.matches(
+              "pairs/" + pairId + "/proofOfLife/" + request.auth.uid + "/[A-Za-z0-9_-]+[.][a-z]+")
+            && request.resource.data.caption.size() <= 140
+          ) || (
+            // Partner reacts.
+            resource.data.ownerUid != request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["reaction"])
+          )
+        );
+        allow delete: if isPairMember(pairId) && resource.data.ownerUid == request.auth.uid;
+      }
+
       match /voiceCapsules/{capsuleId} {
         allow read: if isPairMember(pairId);
         allow create: if isPairMember(pairId)
@@ -331,7 +407,7 @@ service cloud.firestore {
           && request.resource.data.body.size() <= 500
           && request.resource.data.route in [
             "home", "chat", "plans", "care", "care_support",
-            "care_dates", "care_period", "care_routine", "care_voice", "games"
+            "care_dates", "care_period", "care_routine", "care_voice", "games", "recap", "memories"
           ]
           && request.resource.data.action is string
           && request.resource.data.action.size() > 0

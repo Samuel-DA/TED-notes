@@ -3,6 +3,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
@@ -25,12 +26,13 @@ export type Todo = {
   category?: string | null;
   dueDate?: string | null;
   createdBy?: string;
+  completedAt?: { toDate: () => Date } | null;
 };
 
 export type TodoMeta = { category?: string | null; dueDate?: string | null };
 
 export function useTodos() {
-  const { pairId, uid, myName } = useApp();
+  const { pairId, uid, myName, resumeKey } = useApp();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -46,7 +48,7 @@ export function useTodos() {
       setLoaded(true);
       setError(null);
     }, (e) => { setError(e.message); setLoaded(true); });
-  }, [pairId]);
+  }, [pairId, resumeKey]);
 
   /* ➕ Add */
   const addTodo = async (text: string, meta: TodoMeta = {}) => {
@@ -100,7 +102,7 @@ export function useTodos() {
       lastCompletedRef.current = id;
     }
     const item = todos.find((todo) => todo.id === id);
-    updateDoc(doc(db, "pairs", pairId, "todos", id), { completed: !completed })
+    updateDoc(doc(db, "pairs", pairId, "todos", id), { completed: !completed, completedAt: completed ? deleteField() : serverTimestamp() })
       .then(() => notifyPartner({ pairId, currentUid: uid, route: "plans", action: completed ? "plan_reopened" : "plan_completed", title: completed ? "Plan reopened" : "Plan completed ✅", body: `${myName || "Your partner"} ${completed ? "reopened" : "completed"} “${item?.text || "a shared plan"}”.` }))
       .catch(console.error);
   };

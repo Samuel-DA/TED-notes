@@ -5,8 +5,9 @@ import {
   getReactNativePersistence,
   browserLocalPersistence,
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 import { Platform } from "react-native";
 
 const firebaseConfig = {
@@ -22,11 +23,20 @@ const firebaseConfig = {
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore
-export const db = getFirestore(app);
+// Initialize Firestore.
+// React Native's networking can silently stall Firestore's default streaming
+// transport (live listeners stop updating until the screen is reopened).
+// Long polling is the reliable transport on native.
+export const db = initializeFirestore(
+  app,
+  Platform.OS === "web" ? {} : { experimentalForceLongPolling: true },
+);
 
 // Initialize Storage
 export const storage = getStorage(app);
+
+// Cloud Functions (same region as functions/index.js)
+export const functions = getFunctions(app, "us-central1");
 
 // Initialize Auth with **platform-specific persistence**
 export const auth =

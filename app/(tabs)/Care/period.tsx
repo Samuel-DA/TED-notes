@@ -82,8 +82,10 @@ const isEmptyLog = (log: DailyLog) => log.flow === "None" && !log.symptoms.lengt
 export default function PeriodPage() {
   const t = useTheme();
   const styles = useStyles();
-  const { pairId, uid, myName, partnerName } = useApp();
-  const today = useMemo(() => new Date(), []);
+  const { pairId, uid, myName, partnerName, today: todayKeyLive, resumeKey } = useApp();
+  // Re-evaluated when the day rolls over or the app returns to the foreground.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const today = useMemo(() => new Date(), [todayKeyLive]);
   const todayKey = toKey(today);
   const [tracker, setTracker] = useState<Tracker | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -103,7 +105,7 @@ export default function PeriodPage() {
       setCycleDraft(data.cycleLength || 28);
       setPeriodDraft(data.periodLength || 5);
     }, () => setLoaded(true));
-  }, [pairId]);
+  }, [pairId, resumeKey]);
 
   const cycleLength = tracker?.cycleLength || 28;
   const periodLength = tracker?.periodLength || 5;

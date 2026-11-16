@@ -5,7 +5,7 @@ export interface QuestionData {
   question: string; // Changed to match your Home.tsx component expectation
 }
 
-const QUESTIONS: QuestionData[] = [
+export const QUESTIONS: QuestionData[] = [
   // ==========================================
   // RELATIONSHIP (1 - 100)
   // ==========================================
@@ -1256,7 +1256,57 @@ const QUESTIONS: QuestionData[] = [
   { id: 997, question: "How do you see God’s hand or guidance in the story of how we met and fell in love? #997" },
   { id: 998, question: "What does building a Christ-centered home look like to you in terms of practical habits? #998" },
   { id: 999, question: "What is a ministry, charity, or mission cause you feel strongly called to serve together? #999" },
-  { id: 1000, question: "What is a spiritual legacy or value you most want us to pass down to our future children? #1000" }
+  { id: 1000, question: "What is a spiritual legacy or value you most want us to pass down to our future children? #1000" },
+
+  // More faith & prayer questions (1001 - 1048)
+  { id: 1001, question: "What is one way you have seen God answer a prayer in your life this year?" },
+  { id: 1002, question: "Which character in the Bible do you relate to most right now, and why?" },
+  { id: 1003, question: "What does 'loving each other as Christ loved the church' look like on an ordinary Tuesday?" },
+  { id: 1004, question: "What is one spiritual habit you would love us to start together this month?" },
+  { id: 1005, question: "When do you feel closest to God: in worship, in silence, in nature, or somewhere else?" },
+  { id: 1006, question: "What is a hymn or worship song that always moves you, and what does it remind you of?" },
+  { id: 1007, question: "How can I pray for you more specifically this week?" },
+  { id: 1008, question: "What is something God has been teaching you through a difficult season?" },
+  { id: 1009, question: "How do you want our home to show hospitality and kindness to others?" },
+  { id: 1010, question: "What does forgiveness look like in practice for you after an argument?" },
+  { id: 1011, question: "Which promise of God do you hold onto most when you feel anxious?" },
+  { id: 1012, question: "How would you describe your faith journey in three words?" },
+  { id: 1013, question: "What is one thing you'd like us to fast from or give up together for a season?" },
+  { id: 1014, question: "How do you discern God's will when making a big decision?" },
+  { id: 1015, question: "What does Sabbath rest mean to you, and how could we practise it together?" },
+  { id: 1016, question: "Which Psalm best describes how your heart feels this week?" },
+  { id: 1017, question: "What is a moment you knew God placed someone in your life at exactly the right time?" },
+  { id: 1018, question: "How can we encourage each other's walk with God without it feeling like pressure?" },
+  { id: 1019, question: "What does serving each other the way Jesus served look like for us?" },
+  { id: 1020, question: "What do you think God is calling you to be braver about?" },
+  { id: 1021, question: "How do you want us to handle tithing and generosity as a couple?" },
+  { id: 1022, question: "What is a Bible story you would love us to read together and talk about?" },
+  { id: 1023, question: "How has your understanding of grace changed since you were younger?" },
+  { id: 1024, question: "What is one area of your life you find hardest to surrender to God?" },
+  { id: 1025, question: "Who has been a spiritual mentor to you, and what did they teach you?" },
+  { id: 1026, question: "What would a perfect Sunday together look like for you?" },
+  { id: 1027, question: "How do you want us to pray together: set times, spontaneous, or both?" },
+  { id: 1028, question: "What fruit of the Spirit do you most want to grow in this season?" },
+  { id: 1029, question: "What does it mean to you that God's love is unconditional?" },
+  { id: 1030, question: "How can our relationship be a blessing to the people around us?" },
+  { id: 1031, question: "What is one worry you'd like to hand over to God tonight?" },
+  { id: 1032, question: "What does a Christ-centred argument look like to you?" },
+  { id: 1033, question: "How do you sense God speaking to you most often?" },
+  { id: 1034, question: "What is a verse you would want read at our wedding, and why?" },
+  { id: 1035, question: "How do you want our faith to shape how we spend our money and time?" },
+  { id: 1036, question: "What does contentment look like for you right now?" },
+  { id: 1037, question: "When have you felt God's peace in a situation that made no sense?" },
+  { id: 1038, question: "What is one thing you're thankful to God for about us today?" },
+  { id: 1039, question: "How can we keep our faith fresh rather than routine?" },
+  { id: 1040, question: "What does purity mean to you beyond physical boundaries?" },
+  { id: 1041, question: "Which spiritual gift do you think I have, and how could I use it more?" },
+  { id: 1042, question: "What is one way we could serve our church or community together?" },
+  { id: 1043, question: "How do you want to handle seasons when one of us feels far from God?" },
+  { id: 1044, question: "What does 'two are better than one' (Ecclesiastes 4:9) mean for us?" },
+  { id: 1045, question: "What is a fear you have about the future that you want God's help with?" },
+  { id: 1046, question: "How do you picture family devotions or worship in our future home?" },
+  { id: 1047, question: "What is the most meaningful sermon or teaching you have ever heard?" },
+  { id: 1048, question: "If you could ask God one question today, what would it be?" }
 ];
 
 export function getQuestionOfTheDay(): QuestionData {

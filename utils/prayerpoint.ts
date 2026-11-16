@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { KJV_TEXT } from "./scripture";
+import { localDayIndex } from "./verseOfTheDay";
 
 export const PRAYER_POINTS = [
   // Communication & Understanding
@@ -99,39 +100,19 @@ export const PRAYER_POINTS = [
   // … you can continue repeating and rephrasing within categories to reach 100+
 ];
 
-const STORAGE_KEY = "@prayer_point_of_the_day";
-
 export interface PrayerPointData {
   text: string;
   reference: string;
+  /** The KJV text of the passage the prayer is based on. */
+  scripture?: string;
 }
 
+export function getPrayerPointForDay(date = new Date()): PrayerPointData {
+  const prayer = PRAYER_POINTS[localDayIndex(date) % PRAYER_POINTS.length];
+  return { ...prayer, scripture: KJV_TEXT[prayer.reference] };
+}
+
+/** Kept async for compatibility with existing callers. */
 export async function getPrayerPointOfTheDay(): Promise<PrayerPointData> {
-  const today = new Date().toDateString();
-
-  const cached = await AsyncStorage.getItem(STORAGE_KEY);
-  if (cached) {
-    try {
-      const parsed = JSON.parse(cached);
-      if (
-        parsed.date === today &&
-        parsed.prayerPoint?.text &&
-        parsed.prayerPoint?.reference
-      ) {
-        return parsed.prayerPoint;
-      }
-    } catch {
-      // Ignore parse errors, continue
-    }
-  }
-
-  const seed = Math.floor(Date.now() / 86400000);
-  const prayer = PRAYER_POINTS[seed % PRAYER_POINTS.length];
-
-  await AsyncStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ date: today, prayerPoint: prayer }),
-  );
-
-  return prayer;
+  return getPrayerPointForDay();
 }

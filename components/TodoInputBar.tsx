@@ -4,6 +4,9 @@ import { ArrowUp, CalendarDays, X } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { dueLabel, dueOptions, PLAN_CATEGORIES } from "@/constants/plans";
+import DatePicker from "@/components/ui/DatePicker";
+import { Sheet } from "@/components/ui/kit";
+import { toKey } from "@/utils/dayKey";
 import { useTabBarSpace } from "./SleekTabBar";
 import { makeStyles, useTheme } from "@/hooks/useTheme";
 
@@ -22,6 +25,7 @@ export default function TodoInputBar({ value, onChange, category, onCategoryChan
   const styles = useStyles();
   const tabBarSpace = useTabBarSpace();
   const [focused, setFocused] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [height, setHeight] = useState(48);
   const options = useMemo(() => dueOptions(), []);
   const canSend = value.trim().length > 0;
@@ -53,6 +57,10 @@ export default function TodoInputBar({ value, onChange, category, onCategoryChan
               </Pressable>
             );
           })}
+          <Pressable onPress={() => setPickerOpen(true)} style={styles.chip}>
+            <CalendarDays color={t.textSecondary} size={13} />
+            <Text style={styles.chipText}>Pick date</Text>
+          </Pressable>
           <View style={styles.divider} />
           {PLAN_CATEGORIES.map((item) => {
             const active = category === item.key;
@@ -83,6 +91,9 @@ export default function TodoInputBar({ value, onChange, category, onCategoryChan
           <ArrowUp color="#fff" size={20} strokeWidth={2.6} />
         </Pressable>
       </View>
+      <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} eyebrow="DUE DATE" title="When should this happen?">
+        <DatePicker value={dueDate} minDate={toKey(new Date())} onChange={(key) => { onDueDateChange(key); setPickerOpen(false); }} />
+      </Sheet>
     </View>
   );
 }

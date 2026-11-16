@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Href, useRouter } from "expo-router";
-import { ArrowLeft, Bell, BookOpen, CalendarDays, CalendarHeart, ClipboardCheck, HeartHandshake, Menu, Mic, Settings } from "lucide-react-native";
+import { ArrowLeft, Bell, BookOpen, CalendarDays, CalendarHeart, ClipboardCheck, HeartHandshake, Images, Menu, Mic, Settings, Sparkles } from "lucide-react-native";
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { IconButton, Sheet, type IconType } from "@/components/ui/kit";
@@ -28,6 +28,8 @@ const NAV_ITEMS: { label: string; href: Href; icon: IconType; tone: "accent" | "
   { label: "Dates", href: "/(tabs)/Care/dates", icon: CalendarHeart, tone: "violet" },
   { label: "Voice notes", href: "/(tabs)/Care/voice", icon: Mic, tone: "info" },
   { label: "Facts", href: "/(tabs)/Care/facts", icon: BookOpen, tone: "warning" },
+  { label: "Memories", href: "/memories" as Href, icon: Images, tone: "accent" },
+  { label: "Weekly recap", href: "/recap" as Href, icon: Sparkles, tone: "violet" },
 ];
 
 export default function AppHeader({ eyebrow, title, subtitle, icon, back = false, onIconPress, iconAccessibilityLabel, right }: Props) {

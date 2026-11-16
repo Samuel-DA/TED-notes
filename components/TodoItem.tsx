@@ -5,6 +5,8 @@ import React, { memo, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { categoryOf, dueLabel, dueOptions, PLAN_CATEGORIES, type DueTone } from "@/constants/plans";
 import type { Todo, TodoMeta } from "@/hooks/useTodos";
+import DatePicker from "@/components/ui/DatePicker";
+import { toKey } from "@/utils/dayKey";
 import { makeStyles, useTheme } from "@/hooks/useTheme";
 
 type Props = {
@@ -77,6 +79,7 @@ function Editor({ item, onClose, onDelete, onUpdate }: { item: Todo; onClose: ()
   const [category, setCategory] = useState<string | null>(item.category ?? null);
   const [dueDate, setDueDate] = useState<string | null>(item.dueDate ?? null);
   const [saving, setSaving] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const options = useMemo(() => dueOptions(), []);
   const customDue = dueDate && !options.some((option) => option.key === dueDate);
 
@@ -101,7 +104,9 @@ function Editor({ item, onClose, onDelete, onUpdate }: { item: Todo; onClose: ()
         <Chip label="Anytime" active={!dueDate} onPress={() => setDueDate(null)} />
         {customDue && <Chip label={dueLabel(dueDate!).text} active onPress={() => undefined} />}
         {options.map((option) => <Chip key={option.key} label={option.label} active={dueDate === option.key} onPress={() => setDueDate(option.key)} />)}
+        <Chip label={showCalendar ? "Hide calendar" : "Pick date"} active={false} onPress={() => setShowCalendar((v) => !v)} />
       </ScrollView>
+      {showCalendar && <View style={{ marginTop: 12 }}><DatePicker value={dueDate} minDate={toKey(new Date())} onChange={(key) => { setDueDate(key); setShowCalendar(false); }} /></View>}
       <Text style={styles.editLabel}>CATEGORY</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={styles.editChips}>
         <Chip label="None" active={!category} onPress={() => setCategory(null)} />

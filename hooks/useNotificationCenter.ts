@@ -11,6 +11,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useApp } from "@/context/AppContext";
 
 export type InAppNotification = {
   id: string;
@@ -25,6 +26,7 @@ export type InAppNotification = {
 };
 
 export function useNotificationCenter(pairId: string | null, uid: string | null) {
+  const { resumeKey } = useApp();
   const [items, setItems] = useState<InAppNotification[]>([]);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export function useNotificationCenter(pairId: string | null, uid: string | null)
         .map((event) => ({ id: event.id, ...event.data() }) as InAppNotification)
         .filter((event) => event.actorUid !== uid && !event.clearedBy?.includes(uid)));
     }, (error) => console.warn("Notification centre listener failed:", error));
-  }, [pairId, uid]);
+  }, [pairId, uid, resumeKey]);
 
   const unreadCount = useMemo(
     () => items.filter((item) => !item.readBy?.includes(uid || "")).length,

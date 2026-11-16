@@ -14,7 +14,9 @@ export type NotificationRoute =
   | "care_period"
   | "care_routine"
   | "care_voice"
-  | "games";
+  | "games"
+  | "recap"
+  | "memories";
 
 export type NotificationResponse = import("expo-notifications").NotificationResponse;
 type NotificationsModule = typeof import("expo-notifications");

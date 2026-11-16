@@ -1,5 +1,5 @@
 import { Href, useRouter } from "expo-router";
-import { Bell, BookOpen, CalendarHeart, ClipboardCheck, Droplets, Gamepad2, HeartHandshake, House, ListChecks, MessageCircle, Mic, Trash2, X } from "lucide-react-native";
+import { Bell, BookOpen, CalendarHeart, ClipboardCheck, Droplets, Gamepad2, HeartHandshake, House, Images, ListChecks, MessageCircle, Mic, Trash2, X } from "lucide-react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import AppHeader from "@/components/AppHeader";
@@ -19,6 +19,8 @@ const ROUTES: Record<string, { href: Href; icon: IconType; tone: "accent" | "vio
   care_routine: { href: "/(tabs)/Care/routine" as Href, icon: ClipboardCheck, tone: "success" },
   care_voice: { href: "/(tabs)/Care/voice", icon: Mic, tone: "info" },
   games: { href: "/(tabs)/Games", icon: Gamepad2, tone: "warning" },
+  recap: { href: "/recap" as Href, icon: CalendarHeart, tone: "violet" },
+  memories: { href: "/memories" as Href, icon: Images, tone: "accent" },
   facts: { href: "/(tabs)/Care/facts", icon: BookOpen, tone: "warning" },
 };
 

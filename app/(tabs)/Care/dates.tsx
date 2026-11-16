@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
-import { CalendarHeart, Plus, Trash2 } from "lucide-react-native";
+import { CalendarHeart, Plus, Repeat, Trash2 } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { CarePage } from "@/components/care/CareUI";
@@ -12,7 +12,18 @@ import { makeStyles, useTheme } from "@/hooks/useTheme";
 import { notifyPartner, scheduleImportantDateNotificationAsync } from "@/services/notifications";
 import { dayDiff, fromKey, toKey } from "@/utils/dayKey";
 
-type ImportantDate = { id: string; title: string; dateAt: number; note?: string };
+type ImportantDate = { id: string; title: string; dateAt: number; note?: string; repeatsYearly?: boolean };
+
+/** The next time this date happens (today counts). Yearly dates roll forward each year. */
+const nextOccurrence = (item: ImportantDate, today: Date) => {
+  const original = new Date(item.dateAt);
+  if (!item.repeatsYearly) return original;
+  const candidate = new Date(today.getFullYear(), original.getMonth(), original.getDate(), 9);
+  if (dayDiff(candidate, today) < 0) candidate.setFullYear(today.getFullYear() + 1);
+  return candidate;
+};
+
+const ordinal = (n: number) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
 
 const relative = (days: number) => (days === 0 ? "Today" : days === 1 ? "Tomorrow" : days < 0 ? `${-days} day${days === -1 ? "" : "s"} ago` : `In ${days} days`);
 
@@ -26,6 +37,7 @@ export default function DatesPage() {
   const [title, setTitle] = useState("");
   const [dateKey, setDateKey] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [yearly, setYearly] = useState(false);
   const [saving, setSaving] = useState(false);
   const today = useMemo(() => new Date(), []);
 
@@ -37,29 +49,31 @@ export default function DatesPage() {
     }, () => setLoaded(true));
   }, [pairId]);
 
-  // Schedule a 9am local reminder for each upcoming date (once per device).
+  // Schedule a 9am local reminder for each upcoming date (once per device, per occurrence).
   useEffect(() => {
     dates.forEach(async (item) => {
-      const reminderAt = new Date(item.dateAt); reminderAt.setHours(9, 0, 0, 0);
+      const reminderAt = nextOccurrence(item, new Date()); reminderAt.setHours(9, 0, 0, 0);
       if (reminderAt.getTime() <= Date.now()) return;
-      const key = `@ted-care-date:${item.id}:${item.dateAt}`;
+      const key = `@ted-care-date:${item.id}:${reminderAt.getTime()}`;
       if (await AsyncStorage.getItem(key)) return;
       const id = await scheduleImportantDateNotificationAsync({ title: `Today: ${item.title} 💗`, body: item.note || "An important date you saved together.", date: reminderAt });
       if (id) await AsyncStorage.setItem(key, id);
     });
   }, [dates]);
 
-  const upcoming = dates.filter((d) => dayDiff(new Date(d.dateAt), today) >= 0);
-  const past = dates.filter((d) => dayDiff(new Date(d.dateAt), today) < 0).reverse();
+  const upcoming = dates
+    .filter((d) => d.repeatsYearly || dayDiff(new Date(d.dateAt), today) >= 0)
+    .sort((a, b) => nextOccurrence(a, today).getTime() - nextOccurrence(b, today).getTime());
+  const past = dates.filter((d) => !d.repeatsYearly && dayDiff(new Date(d.dateAt), today) < 0).reverse();
 
-  const openAdd = () => { setTitle(""); setDateKey(null); setNote(""); setOpen(true); };
+  const openAdd = () => { setTitle(""); setDateKey(null); setNote(""); setYearly(false); setOpen(true); };
 
   const add = async () => {
     if (!pairId || !uid || !title.trim() || !dateKey) return;
     const at = fromKey(dateKey); at.setHours(9, 0, 0, 0);
     setSaving(true);
     try {
-      await addDoc(collection(db, "pairs", pairId, "careDates"), { title: title.trim(), dateAt: at.getTime(), note: note.trim(), createdBy: uid, createdAt: serverTimestamp() });
+      await addDoc(collection(db, "pairs", pairId, "careDates"), { title: title.trim(), dateAt: at.getTime(), note: note.trim(), repeatsYearly: yearly, createdBy: uid, createdAt: serverTimestamp() });
       setOpen(false);
       void notifyPartner({ pairId, currentUid: uid, route: "care_dates", action: "date_added", title: "Important date added 📅", body: `${myName || "Your partner"} added “${title.trim()}” for ${at.toLocaleDateString(undefined, { day: "numeric", month: "long" })}.` });
     } catch (error) {
@@ -77,8 +91,9 @@ export default function DatesPage() {
   ]);
 
   const Row = ({ item, faded }: { item: ImportantDate; faded?: boolean }) => {
-    const date = new Date(item.dateAt);
+    const date = nextOccurrence(item, today);
     const days = dayDiff(date, today);
+    const years = item.repeatsYearly ? date.getFullYear() - new Date(item.dateAt).getFullYear() : 0;
     return (
       <Card style={[s.row, faded && { opacity: 0.6 }]}>
         <View style={[s.badge, days === 0 && { backgroundColor: t.accent }]}>
@@ -88,7 +103,10 @@ export default function DatesPage() {
         <View style={{ flex: 1 }}>
           <Text style={s.title} numberOfLines={2}>{item.title}</Text>
           {!!item.note && <Text style={s.note} numberOfLines={2}>{item.note}</Text>}
-          <View style={{ marginTop: 7 }}><Badge label={relative(days)} tone={days === 0 ? "accent" : days > 0 && days <= 7 ? "warning" : "neutral"} /></View>
+          <View style={{ marginTop: 7, flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+            <Badge label={relative(days)} tone={days === 0 ? "accent" : days > 0 && days <= 7 ? "warning" : "neutral"} />
+            {item.repeatsYearly && <Badge label={years > 0 ? `${ordinal(years)} year` : "Every year"} tone="violet" icon={Repeat} />}
+          </View>
         </View>
         <Pressable accessibilityLabel={`Delete ${item.title}`} hitSlop={6} onPress={() => remove(item)} style={s.delete}><Trash2 color={t.textMuted} size={17} /></Pressable>
       </Card>
@@ -113,9 +131,16 @@ export default function DatesPage() {
       <Sheet visible={open} onClose={() => setOpen(false)} eyebrow="NEW REMINDER" title="Add an important date">
         <Field label="What's happening?" value={title} onChangeText={setTitle} placeholder="Mum's birthday" maxLength={80} />
         <Text style={s.pickLabel}>When</Text>
-        <DatePicker value={dateKey} onChange={setDateKey} minDate={toKey(today)} />
+        <DatePicker value={dateKey} onChange={setDateKey} minDate={yearly ? undefined : toKey(today)} />
+        <Pressable onPress={() => setYearly((v) => !v)} style={s.repeatRow}>
+          <View style={[s.repeatBox, yearly && { backgroundColor: t.accent, borderColor: t.accent }]}>{yearly && <Repeat color="#fff" size={13} />}</View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.repeatTitle}>Repeats every year</Text>
+            <Text style={s.repeatBody}>For birthdays and anniversaries. You can pick a past date, like the day you met.</Text>
+          </View>
+        </Pressable>
         <Field label="Note (optional)" value={note} onChangeText={setNote} placeholder="Book the restaurant by Friday" style={{ marginTop: 14 }} maxLength={200} />
-        <Button title={dateKey ? `Save for ${fromKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : "Pick a date"} disabled={!title.trim() || !dateKey} loading={saving} onPress={add} />
+        <Button title={dateKey ? `Save for ${fromKey(dateKey).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : "Pick a date"} disabled={!title.trim() || !dateKey || (!yearly && dayDiff(fromKey(dateKey), today) < 0)} loading={saving} onPress={add} />
       </Sheet>
     </CarePage>
   );
@@ -129,5 +154,9 @@ const useStyles = makeStyles((t) => ({
   title: { color: t.text, fontWeight: "800", fontSize: 15.5 },
   note: { color: t.textSecondary, fontSize: 13, marginTop: 3 },
   delete: { width: 38, height: 38, borderRadius: 13, backgroundColor: t.surfaceSunken, alignItems: "center", justifyContent: "center" },
+  repeatRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 14, padding: 12, borderRadius: 16, backgroundColor: t.surfaceSunken },
+  repeatBox: { width: 24, height: 24, borderRadius: 8, borderWidth: 2, borderColor: t.borderStrong, alignItems: "center", justifyContent: "center" },
+  repeatTitle: { color: t.text, fontSize: 14.5, fontWeight: "700" },
+  repeatBody: { color: t.textSecondary, fontSize: 12.5, marginTop: 2 },
   pickLabel: { color: t.textSecondary, fontSize: 12.5, fontWeight: "700", marginBottom: 10, marginLeft: 2 },
 }));
